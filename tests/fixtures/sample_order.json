@@ -1,0 +1,82 @@
+{
+  "id": 15674,
+  "status": "processing",
+  "total": "26188",
+  "shipping_total": "1375",
+  "payment_method": "cod",
+  "payment_method_title": "При получении",
+  "customer_note": "Promo:coinmetrica тест ТЕСТ",
+  "billing": {
+    "first_name": "Екатерина Кошенкова",
+    "last_name": "",
+    "email": "katerina@kosh.games",
+    "phone": "+79099371845",
+    "address_1": "",
+    "address_2": "",
+    "city": "",
+    "state": "",
+    "postcode": "",
+    "country": "RU"
+  },
+  "shipping": {
+    "first_name": "",
+    "last_name": "",
+    "address_1": "Пресненская набережная 10",
+    "address_2": "MSK2425, Москва, ул. Садовая-Кудринская, 20",
+    "city": "Мо��ква",
+    "state": "",
+    "postcode": "125464",
+    "country": "RU"
+  },
+  "shipping_lines": [
+    {
+      "id": 1,
+      "method_title": "CDEK: Самовывоз (1 дней)",
+      "method_id": "official_cdek",
+      "total": "382",
+      "meta_data": []
+    },
+    {
+      "id": 2,
+      "method_title": "Наценка за наложенный платеж",
+      "method_id": "flat_rate",
+      "total": "993",
+      "meta_data": []
+    }
+  ],
+  "line_items": [
+    {
+      "id": 101,
+      "name": "Товар 1",
+      "product_id": 5001,
+      "sku": "TG130X3-B",
+      "quantity": 1,
+      "price": 6831,
+      "total": "6831",
+      "meta_data": []
+    },
+    {
+      "id": 102,
+      "name": "Товар 2",
+      "product_id": 5002,
+      "sku": "TG-RING",
+      "quantity": 1,
+      "price": 13491,
+      "total": "13491",
+      "meta_data": []
+    },
+    {
+      "id": 103,
+      "name": "Товар 3",
+      "product_id": 5003,
+      "sku": "TG128X3-B-1",
+      "quantity": 1,
+      "price": 4491,
+      "total": "4491",
+      "meta_data": []
+    }
+  ],
+  "coupon_codes": ["coinmetrica"],
+  "fee_lines": [],
+  "meta_data": []
+}
