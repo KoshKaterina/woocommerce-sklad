@@ -18,6 +18,11 @@ from .product_matcher import ProductMatcher
 
 log = get_logger(__name__)
 
+# ВРЕМЕННО: суффикс для тестового режима (чтобы номера не пересекались с другой интеграцией)
+# Убрать после завершения тестирования (поставить "")
+_TEST_ORDER_SUFFIX = "_1"
+
+
 class OrderProcessor:
     """Обработка заказа WC: маппинг полей, сборка позиций, создание/обновление в МС."""
 
@@ -124,31 +129,33 @@ class OrderProcessor:
         # --- 4. Определяем сценарий и создаём заказы ---
         order_specs = []
 
+        sfx = _TEST_ORDER_SUFFIX  # ВРЕМЕННО: тестовый суффикс
+
         if has_regular and has_opened:
             # Смешанный: 2 заказа
             # Основной: обычные товары + все услуги, склад "Основной", реальный номер
             order_specs.append({
-                "order_number": order_id,
+                "order_number": f"{order_id}{sfx}",
                 "store_id": self.config.MS_STORE_ID,
                 "positions": regular + services,
             })
-            # Дополнительный: товары из видеообзора, склад "Вскрытые", номер_1, без услуг
+            # Дополнительный: товары из видеообзора, склад "Вскрытые", номер + sfx + _1, без услуг
             order_specs.append({
-                "order_number": f"{order_id}_1",
+                "order_number": f"{order_id}{sfx}_1",
                 "store_id": self.config.MS_STORE_OPENED_ID or self.config.MS_STORE_ID,
                 "positions": opened,
             })
         elif has_opened:
             # Только товары из видеообзора + услуги → 1 заказ, склад "Вскрытые"
             order_specs.append({
-                "order_number": order_id,
+                "order_number": f"{order_id}{sfx}",
                 "store_id": self.config.MS_STORE_OPENED_ID or self.config.MS_STORE_ID,
                 "positions": opened + services,
             })
         else:
             # Только обычные товары (или пусто) + услуги → 1 заказ, склад "Основной"
             order_specs.append({
-                "order_number": order_id,
+                "order_number": f"{order_id}{sfx}",
                 "store_id": self.config.MS_STORE_ID,
                 "positions": regular + services,
             })
@@ -175,16 +182,15 @@ class OrderProcessor:
         store_id = spec["store_id"]
         positions = spec["positions"]
 
-        # Проверка дубликата — ВРЕМЕННО ОТКЛЮЧЕНА для тестирования
-        # existing = self._find_existing_order(order_number)
-        # if existing and topic == "order.created":
-        #     log.info("Заказ уже существует в МС, пропускаем",
-        #              order_number=order_number, ms_name=existing.get("name"))
-        #     return existing
+        # Проверка дубликата
+        existing = self._find_existing_order(order_number)
+        if existing and topic == "order.created":
+            log.info("Заказ уже существует в МС, пропускаем",
+                     order_number=order_number, ms_name=existing.get("name"))
+            return existing
 
-        existing = None  # ВРЕМЕННО: всегда создаём новый заказ
-        is_update = False
-        existing_id = None
+        is_update = existing is not None
+        existing_id = existing["id"] if existing else None
 
         # Расчёт стоимостей из позиций
         estimated_cost, delivery_cost, total_to_pay = self._calc_costs(
@@ -358,11 +364,13 @@ class OrderProcessor:
 
         results = []
         # Ищем основной заказ и возможный _1
-        for suffix in ("", "_1"):
+        # ВРЕМЕННО: _TEST_ORDER_SUFFIX добавляется к номерам (убрать после тестирования)
+        sfx = _TEST_ORDER_SUFFIX
+        for suffix in (sfx, f"{sfx}_1"):
             order_number = f"{order_id}{suffix}"
             existing = self._find_existing_order(order_number)
             if not existing:
-                if not suffix:
+                if suffix == sfx:  # основной заказ не найден
                     log.warning("Заказ не найден в МС для оплаты", order_number=order_number)
                 continue
 

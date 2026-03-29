@@ -4,6 +4,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 from .logger import get_logger
+from .order_processor import _TEST_ORDER_SUFFIX  # ВРЕМЕННО: убрать после тестирования
 
 log = get_logger(__name__)
 
@@ -62,10 +63,10 @@ class Reconciliation:
             order_id = str(order["id"])
 
             try:
-                # ВРЕМЕННО ОТКЛЮЧЕНА проверка дубликатов для тестирования
-                # if self._order_exists_in_ms(order_id):
-                #     found += 1
-                #     continue
+                # ВРЕМЕННО: проверяем с тестовым суффиксом (убрать после тестирования)
+                if self._order_exists_in_ms(f"{order_id}{_TEST_ORDER_SUFFIX}"):
+                    found += 1
+                    continue
 
                 # Не найден — создаём (topic="order.created" гарантирует,
                 # что даже если заказ появится между проверкой и созданием,
