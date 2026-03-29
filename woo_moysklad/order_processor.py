@@ -71,14 +71,14 @@ class OrderProcessor:
         }
         return mapping.get(key)
 
-    def process_order(self, order_data: dict, topic: str = "order.created") -> list[dict]:
-        """Обработать заказ WC и создать/обновить в МС.
+    def process_order(self, order_data: dict) -> list[dict]:
+        """Создать заказ WC в МС (никогда не обновляет существующие).
 
         Может создать 1 или 2 заказа (при наличии товаров "из видеообзора" вместе с обычными).
-        Возвращает список ответов API МС.
+        Если заказ уже существует — пропускает. Возвращает список ответов API МС.
         """
         order_id = str(order_data["id"])
-        log.info("Обработка заказа", wc_order_id=order_id, topic=topic)
+        log.info("Обработка заказа", wc_order_id=order_id)
 
         # --- 1. Контрагент (обязательно) ---
         billing = order_data.get("billing", {})
@@ -160,14 +160,13 @@ class OrderProcessor:
                 "positions": regular + services,
             })
 
-        # --- 5. Создание/обновление каждого заказа ---
+        # --- 5. Создание каждого заказа ---
         results = []
         for spec in order_specs:
             result = self._create_single_order(
                 spec=spec,
                 agent_meta=agent_meta,
                 mapping_ctx=mapping_ctx,
-                topic=topic,
                 wc_order_id=order_id,
             )
             if result:
@@ -176,21 +175,19 @@ class OrderProcessor:
         return results
 
     def _create_single_order(self, *, spec: dict, agent_meta: dict,
-                             mapping_ctx: dict, topic: str, wc_order_id: str) -> dict | None:
-        """Создать или обновить один заказ в МС."""
+                             mapping_ctx: dict, wc_order_id: str) -> dict | None:
+        """Создать один заказ в МС (никогда не обновляет существующие)."""
         order_number = spec["order_number"]
         store_id = spec["store_id"]
         positions = spec["positions"]
 
-        # Проверка дубликата
+        # Проверка дубликата: если заказ уже есть — никогда не обновляем
+        # (менеджеры могут вручную менять заказ в МС, обновление затрёт их правки)
         existing = self._find_existing_order(order_number)
-        if existing and topic == "order.created":
+        if existing:
             log.info("Заказ уже существует в МС, пропускаем",
                      order_number=order_number, ms_name=existing.get("name"))
             return existing
-
-        is_update = existing is not None
-        existing_id = existing["id"] if existing else None
 
         # Расчёт стоимостей из позиций
         estimated_cost, delivery_cost, total_to_pay = self._calc_costs(
@@ -216,23 +213,17 @@ class OrderProcessor:
             attributes=attributes,
             shipment_address=mapping_ctx["shipment_address"],
             description=mapping_ctx["description"],
-            is_update=is_update,
         )
 
-        # Отправка
+        # Отправка (только POST, никогда PUT)
         try:
-            if is_update:
-                result = self.ms.put(f"entity/customerorder/{existing_id}", body)
-                log.info("Заказ обновлён в МС", order_number=order_number,
-                         ms_name=result.get("name"))
-            else:
-                result = self.ms.post("entity/customerorder", body)
-                log.info("Заказ создан в МС", order_number=order_number,
-                         ms_name=result.get("name"))
+            result = self.ms.post("entity/customerorder", body)
+            log.info("Заказ создан в МС", order_number=order_number,
+                     ms_name=result.get("name"))
             return result
 
         except Exception as e:
-            log.critical("Ошибка создания/обновления заказа в МС",
+            log.critical("Ошибка создания заказа в МС",
                          order_number=order_number, error=str(e))
             raise OrderProcessingError(
                 f"Ошибка МС при создании заказа #{order_number}: {e}") from e
@@ -318,7 +309,7 @@ class OrderProcessor:
         return attributes
 
     def _build_body(self, *, agent_meta, store_id, positions, attributes,
-                    shipment_address, description, is_update) -> dict:
+                    shipment_address, description) -> dict:
         """Собрать тело запроса заказа покупателя."""
         cfg = self.config
         body = {
@@ -331,7 +322,7 @@ class OrderProcessor:
         if cfg.MS_SALES_CHANNEL_ID:
             body["salesChannel"] = self.ms.make_meta("saleschannel", cfg.MS_SALES_CHANNEL_ID)
 
-        if not is_update and cfg.MS_STATE_NEW_LEAD_ID:
+        if cfg.MS_STATE_NEW_LEAD_ID:
             body["state"] = self.ms.make_meta("state", cfg.MS_STATE_NEW_LEAD_ID)
 
         if description:

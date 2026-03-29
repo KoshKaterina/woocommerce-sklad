@@ -72,28 +72,19 @@ def make_processor(find_existing=None, cp_meta=None, positions=None, ms_post_res
 def test_create_new_order(sample_order):
     """Создание нового заказа — POST в МС."""
     processor, ms, cp, pm = make_processor()
-    results = processor.process_order(sample_order, topic="order.created")
+    results = processor.process_order(sample_order)
     ms.post.assert_called_once()
     assert results[0]["name"] == "00001"
 
 
-def test_skip_duplicate_on_created(sample_order):
-    """Дубликат при order.created — пропускаем."""
+def test_skip_duplicate(sample_order):
+    """Дубликат — пропускаем, никогда не обновляем."""
     existing = {"id": "existing-id", "name": "00099", "meta": {}}
     processor, ms, cp, pm = make_processor(find_existing=existing)
-    results = processor.process_order(sample_order, topic="order.created")
+    results = processor.process_order(sample_order)
     ms.post.assert_not_called()
     ms.put.assert_not_called()
     assert results[0]["name"] == "00099"
-
-
-def test_update_on_updated(sample_order):
-    """При order.updated + найден — PUT обновление."""
-    existing = {"id": "existing-id", "name": "00099", "meta": {}}
-    processor, ms, cp, pm = make_processor(find_existing=existing)
-    ms.put.return_value = {"id": "existing-id", "name": "00099-upd", "meta": {}}
-    results = processor.process_order(sample_order, topic="order.updated")
-    ms.put.assert_called_once()
 
 
 def test_counterparty_error_raises(sample_order):
@@ -132,7 +123,7 @@ def test_mixed_order_creates_two_orders(sample_order):
         {"id": "order-2", "name": "00002", "meta": {}},
     ]
 
-    results = processor.process_order(sample_order, topic="order.created")
+    results = processor.process_order(sample_order)
 
     assert ms.post.call_count == 2
     assert len(results) == 2
@@ -155,7 +146,7 @@ def test_only_opened_creates_one_order(sample_order):
     }
     processor, ms, cp, pm = make_processor(positions=fake_positions)
 
-    results = processor.process_order(sample_order, topic="order.created")
+    results = processor.process_order(sample_order)
 
     assert ms.post.call_count == 1
     assert len(results) == 1
@@ -166,7 +157,13 @@ def test_only_opened_creates_one_order(sample_order):
 
 
 def test_mixed_order_number_suffix(sample_order):
-    """Второй заказ (из видеообзора) получает суффикс _1 в номере."""
+    """Второй заказ (из видеообзора) получает суффикс _1 в номере.
+
+    ВРЕМЕННО: с _TEST_ORDER_SUFFIX="_1" номера будут order_id_1 и order_id_1_1.
+    После отключения тестового режима: order_id и order_id_1.
+    """
+    from woo_moysklad.order_processor import _TEST_ORDER_SUFFIX
+
     fake_positions = {
         "regular": [{"quantity": 1, "price": 100000, "assortment": {"meta": {"type": "product"}}}],
         "opened": [{"quantity": 1, "price": 50000, "assortment": {"meta": {"type": "product"}}}],
@@ -178,19 +175,20 @@ def test_mixed_order_number_suffix(sample_order):
         {"id": "order-2", "name": "00002", "meta": {}},
     ]
 
-    results = processor.process_order(sample_order, topic="order.created")
+    results = processor.process_order(sample_order)
 
     # Проверяем атрибуты — номер заказа
     order_id = str(sample_order["id"])
+    sfx = _TEST_ORDER_SUFFIX
 
     body1 = ms.post.call_args_list[0][0][1]
     attrs1 = body1["attributes"]
     order_num_attr1 = [a for a in attrs1
                        if "attr-order-num" in a["meta"]["href"]][0]
-    assert order_num_attr1["value"] == order_id
+    assert order_num_attr1["value"] == f"{order_id}{sfx}"
 
     body2 = ms.post.call_args_list[1][0][1]
     attrs2 = body2["attributes"]
     order_num_attr2 = [a for a in attrs2
                        if "attr-order-num" in a["meta"]["href"]][0]
-    assert order_num_attr2["value"] == f"{order_id}_1"
+    assert order_num_attr2["value"] == f"{order_id}{sfx}_1"

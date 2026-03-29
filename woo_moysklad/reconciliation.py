@@ -71,7 +71,7 @@ class Reconciliation:
                 # Не найден — создаём (topic="order.created" гарантирует,
                 # что даже если заказ появится между проверкой и созданием,
                 # дубликат-чек внутри process_order его пропустит)
-                self.processor.process_order(order, topic="order.created")
+                self.processor.process_order(order)
                 created += 1
 
             except Exception as e:

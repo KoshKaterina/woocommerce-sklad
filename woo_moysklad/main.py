@@ -103,10 +103,17 @@ async def webhook_order(
     except json.JSONDecodeError:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
 
-    # --- Дедупликация ---
+    # --- Определение действия ---
     order_id = str(order_data.get("id", ""))
-    if topic == "order.updated" and order_data.get("status") == "processing":
-        action = "mark_paid"
+    if topic == "order.updated":
+        if order_data.get("status") == "processing":
+            action = "mark_paid"
+        else:
+            # order.updated без статуса "processing" — игнорируем
+            # (принцип "только создание": интеграция не обновляет заказы в МС)
+            log.info("Игнорируем order.updated (не mark_paid)",
+                     order_id=order_id, status=order_data.get("status"))
+            return {"status": "ignored", "reason": "update_not_supported"}
     else:
         action = topic
 
@@ -134,7 +141,7 @@ async def webhook_order(
                 ms_names = [r.get("name", "") for r in results]
                 return {"status": "ok", "action": "mark_paid", "ms_orders": ms_names}
 
-            results = order_processor.process_order(order_data, topic=topic)
+            results = order_processor.process_order(order_data)
             ms_names = [r.get("name", "") for r in results]
             return {"status": "ok", "ms_orders": ms_names}
         except OrderProcessingError as e:
