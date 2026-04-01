@@ -64,7 +64,12 @@ def make_processor(find_existing=None, cp_meta=None, positions=None, ms_post_res
 
     pm = MagicMock()
     # build_positions теперь возвращает dict с тремя списками
-    pm.build_positions.return_value = positions or {"regular": [], "opened": [], "services": []}
+    pm.build_positions.return_value = positions or {
+        "regular": [{"quantity": 1, "price": 100000, "discount": 0, "vat": 0,
+                     "assortment": {"meta": {"type": "product", "href": "..."}}}],
+        "opened": [],
+        "services": [],
+    }
 
     return OrderProcessor(config, ms, cp, pm), ms, cp, pm
 

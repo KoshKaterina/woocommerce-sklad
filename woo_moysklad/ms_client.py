@@ -1,5 +1,6 @@
 # HTTP-клиент для API Мой Склад с rate limiter и retry
 
+import threading
 import time
 
 import requests
@@ -30,6 +31,9 @@ class MoySkladClient:
         self._min_interval = 1.0 / config.MS_MAX_REQUESTS_PER_SECOND
         self._last_request_time = 0.0
 
+        # Потокобезопасность: requests.Session не thread-safe
+        self._lock = threading.Lock()
+
     def _rate_limit(self):
         """Ожидание для соблюдения лимита запросов."""
         now = time.monotonic()
@@ -44,15 +48,15 @@ class MoySkladClient:
         url = f"{self.base_url}/{path.lstrip('/')}"
 
         for attempt in range(max_retries):
-            self._rate_limit()
-            start = time.monotonic()
-
             try:
-                # POST/PUT — увеличенный таймаут, т.к. ретрай для них небезопасен
-                timeout = 60 if method in ("POST", "PUT") else 30
-                response = self.session.request(
-                    method=method, url=url, params=params, json=json_data, timeout=timeout
-                )
+                with self._lock:
+                    self._rate_limit()
+                    start = time.monotonic()
+                    # POST/PUT — увеличенный таймаут, т.к. ретрай для них небезопасен
+                    timeout = 60 if method in ("POST", "PUT") else 30
+                    response = self.session.request(
+                        method=method, url=url, params=params, json=json_data, timeout=timeout
+                    )
                 duration = round(time.monotonic() - start, 2)
                 log.info("MS API", method=method, path=path, status=response.status_code, duration=duration)
 

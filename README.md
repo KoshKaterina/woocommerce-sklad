@@ -47,24 +47,7 @@ python -m woo_moysklad.setup_ms_ids
 uvicorn woo_moysklad.main:app --host 0.0.0.0 --port 8000
 
 # Ручная передача заказа в МС
-python -c "
-from dotenv import load_dotenv; load_dotenv()
-from woo_moysklad.config import load_config
-from woo_moysklad.ms_client import MoySkladClient
-from woo_moysklad.counterparty_handler import CounterpartyHandler
-from woo_moysklad.product_matcher import ProductMatcher
-from woo_moysklad.order_processor import OrderProcessor
-from woo_moysklad.woo_client import WooCommerceClient
-
-config = load_config()
-ms = MoySkladClient(config)
-woo = WooCommerceClient(config)
-processor = OrderProcessor(config, ms, CounterpartyHandler(ms), ProductMatcher(ms))
-
-order = woo.get_order(12345)  # номер заказа WC
-result = processor.process_order(order)
-print(f'Заказ МС: {result[\"name\"]}')
-"
+python process_order.py 12345
 ```
 
 ## Тесты
@@ -86,7 +69,7 @@ woo_moysklad/
   field_mappers.py        — маппинг полей WC → МС
   product_matcher.py      — сопоставление товаров по SKU, услуги доставки
   order_processor.py      — сборка и отправка заказа в МС
-  reconciliation.py       — периодическая сверка (раз в час)
+  reconciliation.py       — периодическая сверка (раз в 20 минут)
   main.py                 — FastAPI: /webhook/order, /health
   setup_ms_ids.py         — утилита получения UUID из МС
 tests/

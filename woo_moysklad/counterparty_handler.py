@@ -107,7 +107,7 @@ class CounterpartyHandler:
                 "name": full_name or "Без имени",
                 "companyType": "individual",
                 "firstName": first_name,
-                "phones": [{"value": normalized}],
+                "phone": normalized,
             }
 
             if last_name:

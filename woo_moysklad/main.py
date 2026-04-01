@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     order_processor = OrderProcessor(config, ms_client, cp_handler, pm)
     reconciliation = Reconciliation(config, woo_client, ms_client, order_processor)
 
-    # Запуск периодической сверки (раз в час)
+    # Запуск периодической сверки (раз в 20 минут)
     reconciliation.schedule()
     log.info("Приложение запущено")
 
@@ -107,6 +107,12 @@ async def webhook_order(
     order_id = str(order_data.get("id", ""))
     if topic == "order.updated":
         if order_data.get("status") == "processing":
+            # Оплату при получении (COD) и "На карту" не помечаем — деньги ещё не получены
+            payment_title = order_data.get("payment_method_title", "").lower()
+            if "при получении" in payment_title or "на карту" in payment_title:
+                log.info("Игнорируем mark_paid для ручной оплаты",
+                         order_id=order_id, payment_method=payment_title)
+                return {"status": "ignored", "reason": "manual_payment_not_prepaid"}
             action = "mark_paid"
         else:
             # order.updated без статуса "processing" — игнорируем
@@ -137,11 +143,11 @@ async def webhook_order(
     async with _webhook_lock:
         try:
             if action == "mark_paid":
-                results = order_processor.mark_paid(order_data)
+                results = await asyncio.to_thread(order_processor.mark_paid, order_data)
                 ms_names = [r.get("name", "") for r in results]
                 return {"status": "ok", "action": "mark_paid", "ms_orders": ms_names}
 
-            results = order_processor.process_order(order_data)
+            results = await asyncio.to_thread(order_processor.process_order, order_data)
             ms_names = [r.get("name", "") for r in results]
             return {"status": "ok", "ms_orders": ms_names}
         except OrderProcessingError as e:

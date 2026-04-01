@@ -1,5 +1,7 @@
 # Основной обработчик заказа: сборка и отправка в Мой Склад
 
+import time
+
 from .counterparty_handler import CounterpartyHandler
 from .exceptions import CounterpartyError, OrderProcessingError
 from .field_mappers import (
@@ -125,6 +127,10 @@ class OrderProcessor:
 
         has_regular = bool(regular)
         has_opened = bool(opened)
+
+        if not has_regular and not has_opened:
+            log.critical("Заказ без товаров", wc_order_id=order_id)
+            raise OrderProcessingError(f"Заказ #{order_id} не содержит товаров")
 
         # --- 4. Определяем сценарий и создаём заказы ---
         order_specs = []
@@ -354,26 +360,49 @@ class OrderProcessor:
         log.info("Проставление оплаты", wc_order_id=order_id)
 
         results = []
-        # Ищем основной заказ и возможный _1
         # ВРЕМЕННО: _TEST_ORDER_SUFFIX добавляется к номерам (убрать после тестирования)
         sfx = _TEST_ORDER_SUFFIX
         for suffix in (sfx, f"{sfx}_1"):
             order_number = f"{order_id}{suffix}"
             existing = self._find_existing_order(order_number)
-            if not existing:
-                if suffix == sfx:  # основной заказ не найден
-                    log.warning("Заказ не найден в МС для оплаты", order_number=order_number)
+
+            # Retry для основного заказа при гонке с order.created
+            if not existing and suffix == sfx:
+                for attempt in range(3):
+                    time.sleep(2 * (attempt + 1))  # 2, 4, 6 сек
+                    existing = self._find_existing_order(order_number)
+                    if existing:
+                        log.info("Заказ найден после retry",
+                                 order_number=order_number, attempt=attempt + 1)
+                        break
+                if not existing:
+                    log.warning("Заказ не найден в МС для оплаты после retry",
+                                order_number=order_number)
+                    continue
+            elif not existing:
+                continue
+
+            # Проверка: платёж уже существует
+            if existing.get("payedSum", 0) > 0:
+                log.info("Платёж уже существует, пропускаем",
+                         order_number=order_number, payed_sum=existing.get("payedSum"))
                 continue
 
             # Создаём входящий платёж
+            date_paid = order_data.get("date_paid")
+            moment = date_paid.replace("T", " ") if date_paid else None
+
             payment_body = {
                 "organization": self.ms.make_meta("organization", self.config.MS_ORGANIZATION_ID),
-                "agent": existing["agent"],
+                "agent": {"meta": existing["agent"]["meta"]},
                 "sum": existing["sum"],
+                "applicable": True,
                 "operations": [
-                    {"meta": existing["meta"]}
+                    {"meta": existing["meta"], "linkedSum": existing["sum"]}
                 ],
             }
+            if moment:
+                payment_body["moment"] = moment
 
             try:
                 payment = self.ms.post("entity/paymentin", payment_body)
