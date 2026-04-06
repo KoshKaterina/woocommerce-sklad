@@ -20,9 +20,7 @@ from .product_matcher import ProductMatcher
 
 log = get_logger(__name__)
 
-# ВРЕМЕННО: суффикс для тестового режима (чтобы номера не пересекались с другой интеграцией)
-# Убрать после завершения тестирования (поставить "")
-_TEST_ORDER_SUFFIX = "_1"
+_TEST_ORDER_SUFFIX = ""
 
 
 class OrderProcessor:
@@ -135,7 +133,7 @@ class OrderProcessor:
         # --- 4. Определяем сценарий и создаём заказы ---
         order_specs = []
 
-        sfx = _TEST_ORDER_SUFFIX  # ВРЕМЕННО: тестовый суффикс
+        sfx = _TEST_ORDER_SUFFIX
 
         if has_regular and has_opened:
             # Смешанный: 2 заказа
@@ -360,7 +358,6 @@ class OrderProcessor:
         log.info("Проставление оплаты", wc_order_id=order_id)
 
         results = []
-        # ВРЕМЕННО: _TEST_ORDER_SUFFIX добавляется к номерам (убрать после тестирования)
         sfx = _TEST_ORDER_SUFFIX
         for suffix in (sfx, f"{sfx}_1"):
             order_number = f"{order_id}{suffix}"

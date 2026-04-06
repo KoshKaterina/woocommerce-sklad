@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 from .logger import get_logger
-from .order_processor import _TEST_ORDER_SUFFIX  # ВРЕМЕННО: убрать после тестирования
+from .order_processor import _TEST_ORDER_SUFFIX
 
 log = get_logger(__name__)
 

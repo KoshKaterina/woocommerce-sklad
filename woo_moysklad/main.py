@@ -76,11 +76,6 @@ async def webhook_order(
     """Приём вебхуков WooCommerce (плейсхолдер — логика верификации готова)."""
     body = await request.body()
 
-    # Отладка: гарантированный вывод в stdout
-    import sys
-    print(f"[WEBHOOK] topic={x_wc_webhook_topic}, body_len={len(body)}", flush=True)
-    print(f"[WEBHOOK] body_preview={body[:500]}", flush=True, file=sys.stderr)
-
     # --- Верификация подписи ---
     if config and config.WC_WEBHOOK_SECRET and x_wc_webhook_signature:
         expected = base64.b64encode(
@@ -97,9 +92,7 @@ async def webhook_order(
 
     # --- Определение топика ---
     topic = x_wc_webhook_topic or ""
-    print(f"[WEBHOOK] resolved topic={topic!r}", flush=True)
     if topic not in ("order.created", "order.updated"):
-        print(f"[WEBHOOK] IGNORING unknown topic={topic!r}", flush=True)
         return {"status": "ignored", "topic": topic}
 
     # --- Парсинг тела ---
@@ -146,7 +139,6 @@ async def webhook_order(
     _webhook_dedup[dedup_key] = now
 
     # --- Последовательная обработка ---
-    print(f"[WEBHOOK] processing order_id={order_id}, action={action}", flush=True)
     async with _webhook_lock:
         try:
             if action == "mark_paid":
