@@ -143,6 +143,20 @@ class MoySkladClient:
             }
         }
 
+    def make_state_meta(self, entity_type: str, state_uuid: str) -> dict:
+        """Сформировать meta-ссылку на статус сущности МС.
+
+        Генерирует /entity/{entity_type}/metadata/states/{state_uuid},
+        а не /entity/state/{uuid} (которого не существует).
+        """
+        return {
+            "meta": {
+                "href": f"{self.base_url}/entity/{entity_type}/metadata/states/{state_uuid}",
+                "type": "state",
+                "mediaType": "application/json",
+            }
+        }
+
     def find_by_filter(self, entity_type: str, filter_str: str) -> list:
         """Поиск сущностей по фильтру. Возвращает список rows."""
         result = self.get(f"entity/{entity_type}", params={"filter": filter_str})

@@ -329,7 +329,7 @@ class OrderProcessor:
             body["salesChannel"] = self.ms.make_meta("saleschannel", cfg.MS_SALES_CHANNEL_ID)
 
         if cfg.MS_STATE_NEW_LEAD_ID:
-            body["state"] = self.ms.make_meta("state", cfg.MS_STATE_NEW_LEAD_ID)
+            body["state"] = self.ms.make_state_meta("customerorder", cfg.MS_STATE_NEW_LEAD_ID)
 
         if description:
             body["description"] = description

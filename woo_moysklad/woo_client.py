@@ -27,8 +27,13 @@ class WooCommerceClient:
         return response.json()
 
     def get_orders(self, after: str | None = None, before: str | None = None,
+                   modified_after: str | None = None, modified_before: str | None = None,
                    per_page: int = 100) -> list[dict]:
-        """Получить список заказов с пагинацией. after/before — ISO 8601."""
+        """Получить список заказов с пагинацией.
+
+        after/before — фильтр по date_created (ISO 8601).
+        modified_after/modified_before — фильтр по date_modified (ISO 8601).
+        """
         all_orders = []
         page = 1
 
@@ -38,6 +43,10 @@ class WooCommerceClient:
                 params["after"] = after
             if before:
                 params["before"] = before
+            if modified_after:
+                params["modified_after"] = modified_after
+            if modified_before:
+                params["modified_before"] = modified_before
 
             response = self.wcapi.get("orders", params=params)
             response.raise_for_status()

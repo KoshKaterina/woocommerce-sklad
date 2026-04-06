@@ -47,59 +47,69 @@ class Reconciliation:
         return "при получении" not in payment_title and "на карту" not in payment_title
 
     def run(self):
-        """Сверка заказов за последние 40 минут."""
+        """Сверка заказов: два прохода.
+
+        1) По date_created — проверяем, что все новые заказы создались в МС.
+        2) По date_modified — проверяем, что оплаты проставлены.
+        """
         log.info("Сверка: начало")
         now = datetime.now(timezone.utc)
         window_start = now - RECONCILIATION_WINDOW
 
-        checked = 0
-        found = 0
         created = 0
         paid = 0
         errors = 0
 
+        # --- Проход 1: новые заказы (по date_created) ---
         try:
-            orders = self.woo.get_orders(
+            new_orders = self.woo.get_orders(
                 after=window_start.isoformat(),
                 before=now.isoformat(),
             )
         except Exception as e:
-            log.error("Сверка: ошибка получения заказов из WC", error=str(e))
-            return
+            log.error("Сверка: ошибка получения новых заказов из WC", error=str(e))
+            new_orders = []
 
-        for order in orders:
-            checked += 1
+        for order in new_orders:
             order_id = str(order["id"])
-
             try:
-                # ВРЕМЕННО: проверяем с тестовым суффиксом (убрать после тестирования)
                 ms_order = self._find_order_in_ms(f"{order_id}{_TEST_ORDER_SUFFIX}")
                 if ms_order:
-                    found += 1
-                    # Проверяем, нужна ли оплата (предоплата без платежа в МС)
-                    if self._should_mark_paid(order) and ms_order.get("payedSum", 0) == 0:
-                        try:
-                            self.processor.mark_paid(order)
-                            paid += 1
-                        except Exception as e:
-                            log.error("Сверка: ошибка проставления оплаты",
-                                      wc_order_id=order_id, error=str(e))
-                            errors += 1
                     continue
-
-                # Не найден — создаём (дубликат-чек внутри process_order пропустит,
-                # если заказ появится между проверкой и созданием)
                 self.processor.process_order(order)
                 created += 1
-
             except Exception as e:
                 errors += 1
-                log.error("Сверка: ошибка обработки заказа",
+                log.error("Сверка: ошибка создания заказа",
+                          wc_order_id=order_id, error=str(e))
+
+        # --- Проход 2: оплаты (по date_modified) ---
+        try:
+            modified_orders = self.woo.get_orders(
+                modified_after=window_start.isoformat(),
+                modified_before=now.isoformat(),
+            )
+        except Exception as e:
+            log.error("Сверка: ошибка получения изменённых заказов из WC", error=str(e))
+            modified_orders = []
+
+        for order in modified_orders:
+            order_id = str(order["id"])
+            if not self._should_mark_paid(order):
+                continue
+            try:
+                ms_order = self._find_order_in_ms(f"{order_id}{_TEST_ORDER_SUFFIX}")
+                if not ms_order or ms_order.get("payedSum", 0) > 0:
+                    continue
+                self.processor.mark_paid(order)
+                paid += 1
+            except Exception as e:
+                errors += 1
+                log.error("Сверка: ошибка проставления оплаты",
                           wc_order_id=order_id, error=str(e))
 
         log.info("Сверка: итог",
-                 проверено=checked, в_МС=found, создано=created,
-                 оплачено=paid, ошибок=errors)
+                 новых_создано=created, оплачено=paid, ошибок=errors)
 
     def schedule(self, interval_seconds: int = RECONCILIATION_INTERVAL):
         """Запланировать периодическую сверку через threading.Timer."""
