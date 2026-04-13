@@ -140,7 +140,9 @@ class ProductMatcher:
             if service_meta is None:
                 continue
 
-            if is_card_payment:
+            lower_title = method_title.lower()
+            is_cdek = "cdek" in lower_title or "сдэк" in lower_title
+            if is_card_payment and is_cdek:
                 price = 0
             else:
                 price = int(float(sl.get("total", 0)) * 100)  # Копейки
