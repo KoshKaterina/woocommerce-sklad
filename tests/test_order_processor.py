@@ -30,6 +30,7 @@ def make_config():
     cfg.MS_ATTR_ORDER_NUMBER_ID = "attr-order-num"
     cfg.MS_ATTR_PAYMENT_METHOD_ID = "attr-pay-method"
     cfg.MS_ATTR_PAYMENT_TYPE_ID = "attr-pay-type"
+    cfg.MS_ATTR_PROMO_CODE_ID = "attr-promo"
     cfg.MS_ATTR_DELIVERY_SD_ID = "attr-del-sd"
     cfg.MS_ATTR_DELIVERY_TYPE_ID = "attr-del-type"
     cfg.MS_ATTR_PVZ_CODE_ID = "attr-pvz"
@@ -56,20 +57,23 @@ def make_processor(find_existing=None, cp_meta=None, positions=None, ms_post_res
     config = make_config()
     ms = MagicMock()
     ms.make_meta.return_value = {"meta": {"href": "...", "type": "test", "mediaType": "application/json"}}
+    ms.make_state_meta.return_value = {"meta": {"href": "...", "type": "state", "mediaType": "application/json"}}
     ms.find_by_filter.return_value = [find_existing] if find_existing else []
     ms.post.return_value = ms_post_result or {"id": "new-order", "name": "00001", "meta": {}}
 
     cp = MagicMock()
     cp.find_or_create.return_value = cp_meta or {"meta": {"href": "...", "type": "counterparty"}}
+    cp.find_or_create_from_normalized.return_value = cp_meta or {"meta": {"href": "...", "type": "counterparty"}}
 
     pm = MagicMock()
-    # build_positions теперь возвращает dict с тремя списками
-    pm.build_positions.return_value = positions or {
+    default_positions = positions or {
         "regular": [{"quantity": 1, "price": 100000, "discount": 0, "vat": 0,
                      "assortment": {"meta": {"type": "product", "href": "..."}}}],
         "opened": [],
         "services": [],
     }
+    pm.build_positions.return_value = default_positions
+    pm.build_positions_from_normalized.return_value = default_positions
 
     return OrderProcessor(config, ms, cp, pm), ms, cp, pm
 
@@ -95,7 +99,7 @@ def test_skip_duplicate(sample_order):
 def test_counterparty_error_raises(sample_order):
     """Ошибка контрагента → OrderProcessingError."""
     processor, ms, cp, pm = make_processor()
-    cp.find_or_create.side_effect = CounterpartyError("test error")
+    cp.find_or_create_from_normalized.side_effect = CounterpartyError("test error")
     with pytest.raises(OrderProcessingError):
         processor.process_order(sample_order)
 
@@ -103,7 +107,7 @@ def test_counterparty_error_raises(sample_order):
 def test_positions_passed_to_body(sample_order):
     """Позиции передаются в тело запроса."""
     fake_positions = {
-        "regular": [{"quantity": 1, "price": 683100, "assortment": {}}],
+        "regular": [{"quantity": 1, "price": 683100, "assortment": {"meta": {"type": "product"}}}],
         "opened": [],
         "services": [],
     }
@@ -162,11 +166,7 @@ def test_only_opened_creates_one_order(sample_order):
 
 
 def test_mixed_order_number_suffix(sample_order):
-    """Второй заказ (из видеообзора) получает суффикс _1 в номере.
-
-    ВРЕМЕННО: с _TEST_ORDER_SUFFIX="_1" номера будут order_id_1 и order_id_1_1.
-    После отключения тестового режима: order_id и order_id_1.
-    """
+    """Второй заказ (из видеообзора) получает суффикс _1 в номере."""
     from woo_moysklad.order_processor import _TEST_ORDER_SUFFIX
 
     fake_positions = {

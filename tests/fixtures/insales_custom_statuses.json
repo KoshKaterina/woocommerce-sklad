@@ -1,0 +1,233 @@
+[
+  {
+    "id": 1117321,
+    "system_status": "new",
+    "permalink": "novyy",
+    "position": 19,
+    "is_default": true,
+    "created_at": "2022-11-09T11:06:13.528+03:00",
+    "updated_at": "2022-11-09T11:06:13.528+03:00",
+    "title": "Новый",
+    "color": "#DC5F59"
+  },
+  {
+    "id": 1066434,
+    "system_status": "accepted",
+    "permalink": "v-obrabotke",
+    "position": 1,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:30.996+03:00",
+    "updated_at": "2022-11-03T14:30:30.996+03:00",
+    "title": "В обработке",
+    "color": "#85C5E0"
+  },
+  {
+    "id": 1066435,
+    "system_status": "accepted",
+    "permalink": "gotov-k-peredache-v-bp",
+    "position": 2,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.015+03:00",
+    "updated_at": "2022-11-03T14:30:31.015+03:00",
+    "title": "Готов к передаче в БП",
+    "color": "#85C5E0"
+  },
+  {
+    "id": 1066436,
+    "system_status": "accepted",
+    "permalink": "oshibka",
+    "position": 3,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.121+03:00",
+    "updated_at": "2022-11-03T14:30:31.121+03:00",
+    "title": "Ошибка",
+    "color": "#85C5E0"
+  },
+  {
+    "id": 6045697,
+    "system_status": "accepted",
+    "permalink": "ozhidaem-oplatu",
+    "position": 21,
+    "is_default": false,
+    "created_at": "2025-07-09T11:56:16.381+03:00",
+    "updated_at": "2025-07-09T11:56:16.381+03:00",
+    "title": "Ожидаем Оплату",
+    "color": "#85C5E0"
+  },
+  {
+    "id": 1066437,
+    "system_status": "approved",
+    "permalink": "soglasovan",
+    "position": 4,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:31.215+03:00",
+    "updated_at": "2022-11-03T14:30:31.215+03:00",
+    "title": "Согласован",
+    "color": "#86AA60"
+  },
+  {
+    "id": 1066438,
+    "system_status": "approved",
+    "permalink": "peredan-v-bp",
+    "position": 5,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.233+03:00",
+    "updated_at": "2022-11-03T14:30:31.233+03:00",
+    "title": "Передан в БП",
+    "color": "#86AA60"
+  },
+  {
+    "id": 1066439,
+    "system_status": "dispatched",
+    "permalink": "otgruzhen",
+    "position": 6,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:31.328+03:00",
+    "updated_at": "2022-11-03T14:30:31.328+03:00",
+    "title": "Отгружен",
+    "color": "#3A9FC9"
+  },
+  {
+    "id": 1066440,
+    "system_status": "dispatched",
+    "permalink": "annulirovan-bp",
+    "position": 7,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.348+03:00",
+    "updated_at": "2022-11-03T14:30:31.348+03:00",
+    "title": "Аннулирован БП",
+    "color": "#3A9FC9"
+  },
+  {
+    "id": 1066441,
+    "system_status": "delivered",
+    "permalink": "dostavlen",
+    "position": 8,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:31.471+03:00",
+    "updated_at": "2022-11-03T14:30:31.471+03:00",
+    "title": "Доставлен",
+    "color": "#249641"
+  },
+  {
+    "id": 1066442,
+    "system_status": "delivered",
+    "permalink": "pribyl-v-gorod-naznacheniya",
+    "position": 9,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.491+03:00",
+    "updated_at": "2022-11-03T14:30:31.491+03:00",
+    "title": "Прибыл в город назначения",
+    "color": "#249641"
+  },
+  {
+    "id": 1066443,
+    "system_status": "delivered",
+    "permalink": "peredan-v-sluzhbu-dostavki",
+    "position": 10,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.569+03:00",
+    "updated_at": "2022-11-03T14:30:31.569+03:00",
+    "title": "Передан в службу доставки",
+    "color": "#249641"
+  },
+  {
+    "id": 1066444,
+    "system_status": "delivered",
+    "permalink": "v-puti",
+    "position": 11,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.879+03:00",
+    "updated_at": "2022-11-03T14:30:31.879+03:00",
+    "title": "В пути",
+    "color": "#249641"
+  },
+  {
+    "id": 1066445,
+    "system_status": "delivered",
+    "permalink": "dostavka-perenesena",
+    "position": 12,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:31.957+03:00",
+    "updated_at": "2022-11-03T14:30:31.957+03:00",
+    "title": "Доставка перенесена",
+    "color": "#249641"
+  },
+  {
+    "id": 1066446,
+    "system_status": "delivered",
+    "permalink": "poluchena-oplata-ot-sd",
+    "position": 13,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:32.041+03:00",
+    "updated_at": "2022-11-03T14:30:32.041+03:00",
+    "title": "Получена оплата от СД",
+    "color": "#249641"
+  },
+  {
+    "id": 1066447,
+    "system_status": "delivered",
+    "permalink": "peredana-oplata",
+    "position": 14,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:32.156+03:00",
+    "updated_at": "2022-11-03T14:30:32.156+03:00",
+    "title": "Передана оплата",
+    "color": "#249641"
+  },
+  {
+    "id": 1117322,
+    "system_status": "returning",
+    "permalink": "v-protsesse-vozvrata",
+    "position": 20,
+    "is_default": true,
+    "created_at": "2022-11-09T11:06:13.563+03:00",
+    "updated_at": "2022-11-09T11:06:13.563+03:00",
+    "title": "В процессе возврата",
+    "color": "#686A69"
+  },
+  {
+    "id": 1066451,
+    "system_status": "declined",
+    "permalink": "otmenen",
+    "position": 18,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:32.593+03:00",
+    "updated_at": "2022-11-03T14:30:32.593+03:00",
+    "title": "Отменен",
+    "color": "#929594"
+  },
+  {
+    "id": 1066448,
+    "system_status": "returned",
+    "permalink": "vozvrat",
+    "position": 15,
+    "is_default": true,
+    "created_at": "2022-11-03T14:30:32.378+03:00",
+    "updated_at": "2022-11-03T14:30:32.378+03:00",
+    "title": "Возврат",
+    "color": "#A69196"
+  },
+  {
+    "id": 1066449,
+    "system_status": "returned",
+    "permalink": "poluchen-vozvrat-ot-sd",
+    "position": 16,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:32.396+03:00",
+    "updated_at": "2022-11-03T14:30:32.396+03:00",
+    "title": "Получен возврат от СД",
+    "color": "#A69196"
+  },
+  {
+    "id": 1066450,
+    "system_status": "returned",
+    "permalink": "ozhidaetsya-vozvrat",
+    "position": 17,
+    "is_default": false,
+    "created_at": "2022-11-03T14:30:32.484+03:00",
+    "updated_at": "2022-11-03T14:30:32.484+03:00",
+    "title": "Ожидается возврат",
+    "color": "#A69196"
+  }
+]

@@ -1,0 +1,366 @@
+{
+  "matched": [
+    {
+      "sku": "TG-FPB",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Family Pack Black"
+    },
+    {
+      "sku": "TG-FPHYPERBLUE",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Family Pack Hyperblue"
+    },
+    {
+      "sku": "TG-FPSEA",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Family Pack Electra Sea"
+    },
+    {
+      "sku": "TG-FPSKY",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Family Pack Blush Sky"
+    },
+    {
+      "sku": "TG-FPSTEALTH",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Family Pack Stealth"
+    },
+    {
+      "sku": "TG-HYPERBLUE",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Hyperblue (3 карты)"
+    },
+    {
+      "sku": "TG-RING-US10",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US10"
+    },
+    {
+      "sku": "TG-RING-US11",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US11"
+    },
+    {
+      "sku": "TG-RING-US12",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US12"
+    },
+    {
+      "sku": "TG-RING-US13",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US13"
+    },
+    {
+      "sku": "TG-RING-US6",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US6"
+    },
+    {
+      "sku": "TG-RING-US7",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US7"
+    },
+    {
+      "sku": "TG-RING-US8",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US8"
+    },
+    {
+      "sku": "TG-RING-US9",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem Ring US9"
+    },
+    {
+      "sku": "TG-SEA",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Electra Sea (3 карты)"
+    },
+    {
+      "sku": "TG-SKY",
+      "insales": "Blush Sky",
+      "ms": "Tangem 2.0 Blush Sky (3 карты)"
+    },
+    {
+      "sku": "TG-STEALTH",
+      "insales": "Tangem 2.0",
+      "ms": "Tangem 2.0 Stealth (3 карты)"
+    },
+    {
+      "sku": "TG-TEST",
+      "insales": "Tangem 2.0 (2 карты) тест",
+      "ms": "Tangem 2.0 (2 карты) тест"
+    },
+    {
+      "sku": "TG128X2-B",
+      "insales": "Tangem 2.0 (2 карты)",
+      "ms": "Tangem 2.0 (2 карты)"
+    },
+    {
+      "sku": "TG128X3-B",
+      "insales": "Классический черный",
+      "ms": "Tangem 2.0 (3 карты)"
+    },
+    {
+      "sku": "TG130X2-B",
+      "insales": "Tangem 2.0 WHITE (2 Карты)",
+      "ms": "Tangem 2.0 WHITE (2 Карты)"
+    },
+    {
+      "sku": "TG130X3-B",
+      "insales": "Tangem 2.0 WHITE (3 Карты)",
+      "ms": "Tangem 2.0 WHITE (3 Карты)"
+    }
+  ],
+  "only_insales": [
+    {
+      "sku": "TG-130X3-B",
+      "name": "Tangem 2.0"
+    },
+    {
+      "sku": "TG-BARTER",
+      "name": "Tangem X Barter Smartplace Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-BLESS",
+      "name": "Borderless Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-COINM",
+      "name": "Tangem x COIN metrika Pack of 3 cards"
+    },
+    {
+      "sku": "TG-EMCD",
+      "name": "Tangem EMCD Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-EVANS1",
+      "name": "Kirill Evans (Pack of 3 cards)"
+    },
+    {
+      "sku": "TG-EVANS2",
+      "name": "Kirill Evans. Crypto Community (Pack of 3 cards)"
+    },
+    {
+      "sku": "TG-EVANS3",
+      "name": "Kirill Evans. Dust Space (Pack of 3 cards)"
+    },
+    {
+      "sku": "TG-EVANS4",
+      "name": "Kirill Evans. Set of 3 (Pack of 3 cards)"
+    },
+    {
+      "sku": "TG-KASP",
+      "name": "Tangem X Kaspa Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-KASPA2",
+      "name": "Tangem X Kaspa Wallet Set of 3"
+    },
+    {
+      "sku": "TG-MHUB",
+      "name": "MININGHUB Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-PROTON",
+      "name": "Proton Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-SATOSHI",
+      "name": "Tangem X Satoshi Friends Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-SATOSHI2",
+      "name": "Tangem Satoshi Friends Wallet Set of 3 cards"
+    },
+    {
+      "sku": "TG-SHIB",
+      "name": "Tangem X Shib Wallet Set of 3 cards"
+    }
+  ],
+  "only_ms": [
+    {
+      "article": "TG-109",
+      "name": "Tangem Note BTC"
+    },
+    {
+      "article": "TG-110",
+      "name": "Tangem Note ETH"
+    },
+    {
+      "article": "TG-111",
+      "name": "Tangem Note ADA"
+    },
+    {
+      "article": "TG-113",
+      "name": "Tangem Note BNB"
+    },
+    {
+      "article": "TG-114",
+      "name": "Tangem Note XRP"
+    },
+    {
+      "article": "TG-115",
+      "name": "Tangem Wallet"
+    },
+    {
+      "article": "TG-BLOOM",
+      "name": "Tangem 2.0 Spring Bloom (3 карты)"
+    },
+    {
+      "article": "TG-HODL",
+      "name": "Tangem 2.0 Bitcoin (3 карты)"
+    },
+    {
+      "article": "TG-KASPA3",
+      "name": "Tangem 2.0 x Kaspa (3 карты)"
+    },
+    {
+      "article": "TG-RING",
+      "name": "Tangem Ring"
+    },
+    {
+      "article": "TG-SAKURA2",
+      "name": "Tangem 2.0 Snowy Sakura (3 карты)"
+    },
+    {
+      "article": "TG-SUN",
+      "name": "Tangem 2.0 Sun Drop (3 карты)"
+    },
+    {
+      "article": "TG-TRENDY",
+      "name": "Tangem 2.0 Trendy Pastel (3 карты)"
+    },
+    {
+      "article": "TG-TRON",
+      "name": "Tangem 2.0 x Tron (3 карты)"
+    },
+    {
+      "article": "TG-TWIN",
+      "name": "Tangem TWIN: BTC"
+    },
+    {
+      "article": "TG-VIVID",
+      "name": "Tangem 2.0 x Vivid (3 карты)"
+    },
+    {
+      "article": "TG115X2",
+      "name": "Tangem Wallet (2 карты)"
+    },
+    {
+      "article": "TG115X3",
+      "name": "Tangem Wallet (3 карты)"
+    },
+    {
+      "article": "TG128X2-B-1",
+      "name": "Tangem 2.0 (2 карты) (из видеообзора)"
+    },
+    {
+      "article": "TG128X3-B-1",
+      "name": "Tangem 2.0 (3 карты) (из видеообзора)"
+    }
+  ],
+  "empty_sku_insales": [
+    {
+      "product_title": "Тестовый товар",
+      "variant_title": "",
+      "sku": "",
+      "price": "1.0"
+    },
+    {
+      "product_title": "Классический черный",
+      "variant_title": "2 карты / Классический черный",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Классический черный",
+      "variant_title": "Family Pack / Классический черный",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Классический белый",
+      "variant_title": "3 карты / Классический белый",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Классический белый",
+      "variant_title": "2 карты / Классический белый",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Классический белый",
+      "variant_title": "Family Pack / Классический белый",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Stealth",
+      "variant_title": "3 карты / Stealth",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Stealth",
+      "variant_title": "2 карты / Stealth",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Stealth",
+      "variant_title": "Family Pack / Stealth",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Blush Sky",
+      "variant_title": "2 карты / Blush Sky",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Blush Sky",
+      "variant_title": "Family Pack / Blush Sky",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Electra Sea",
+      "variant_title": "3 карты / Electra Sea",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Electra Sea",
+      "variant_title": "2 карты / Electra Sea",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Electra Sea",
+      "variant_title": "Family Pack / Electra Sea",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Hyperblue",
+      "variant_title": "3 карты / Hyperblue",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Hyperblue",
+      "variant_title": "2 карты / Hyperblue",
+      "sku": "",
+      "price": "0.0"
+    },
+    {
+      "product_title": "Hyperblue",
+      "variant_title": "Family Pack / Hyperblue",
+      "sku": "",
+      "price": "0.0"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "id": 10461449,
+    "type": "PaymentGateway::External",
+    "position": 100,
+    "created_at": "2025-07-18T18:23:42.000+03:00",
+    "updated_at": "2025-07-19T17:36:24.000+03:00",
+    "margin": "0.0",
+    "available_for_individual_clients": true,
+    "available_for_juridical_clients": true,
+    "title": "Оплата онлайн ",
+    "description": "<p>Оплата онлайн любым удобным способом</p>",
+    "password": "fe924f3dcf990add",
+    "url": "https://robokassa.insales.services.ipolh.com/order/pay",
+    "shop_id": "1474469",
+    "send_order": false,
+    "convert_currency": null,
+    "widget_mode": false,
+    "window_mode": null,
+    "widget_html_code": "",
+    "show_at_product": null,
+    "show_at_collection": null,
+    "show_at_cart": null,
+    "design_version": null,
+    "text_version": null,
+    "rounding_version": null,
+    "show_payment_fee": null,
+    "info_page_id": null,
+    "success_url": "https://tangemshop.ru/payments/external/10461449/success",
+    "fail_url": "https://tangemshop.ru/payments/external/10461449/fail",
+    "server_url": "https://tangemshop.ru/payments/external/10461449/server",
+    "redirect_to_payment": true,
+    "payment_delivery_variants": [
+      {
+        "created_at": "2025-07-19T17:36:24.000+03:00",
+        "delivery_variant_id": 3945277,
+        "id": 16321825
+      },
+      {
+        "created_at": "2025-07-19T17:36:24.000+03:00",
+        "delivery_variant_id": 4419071,
+        "id": 16321833
+      },
+      {
+        "created_at": "2025-07-19T17:36:24.000+03:00",
+        "delivery_variant_id": 12087681,
+        "id": 16321841
+      },
+      {
+        "created_at": "2025-07-19T17:33:31.000+03:00",
+        "delivery_variant_id": 12087809,
+        "id": 16321817
+      },
+      {
+        "created_at": "2026-01-17T13:58:06.000+03:00",
+        "delivery_variant_id": 25034489,
+        "id": 19303161
+      }
+    ]
+  },
+  {
+    "id": 2163600,
+    "type": "PaymentGateway::PickUp",
+    "position": 103,
+    "created_at": "2022-09-15T16:39:46.000+03:00",
+    "updated_at": "2025-07-18T18:23:42.000+03:00",
+    "margin": "0.0",
+    "available_for_individual_clients": true,
+    "available_for_juridical_clients": true,
+    "title": "Оплата картой",
+    "description": "",
+    "payment_delivery_variants": []
+  },
+  {
+    "id": 9704193,
+    "type": "PaymentGateway::PostCache",
+    "position": 104,
+    "created_at": "2025-07-07T13:38:37.000+03:00",
+    "updated_at": "2025-07-18T18:23:42.000+03:00",
+    "margin": "5.0",
+    "available_for_individual_clients": true,
+    "available_for_juridical_clients": true,
+    "title": "Оплата при получении ",
+    "description": "",
+    "payment_delivery_variants": [
+      {
+        "created_at": "2025-07-07T13:54:48.000+03:00",
+        "delivery_variant_id": 12087681,
+        "id": 15083777
+      },
+      {
+        "created_at": "2025-07-07T13:38:37.000+03:00",
+        "delivery_variant_id": 12087809,
+        "id": 15078401
+      },
+      {
+        "created_at": "2026-01-17T13:58:06.000+03:00",
+        "delivery_variant_id": 25034489,
+        "id": 19303169
+      }
+    ]
+  },
+  {
+    "id": 9706881,
+    "type": "PaymentGateway::Cod",
+    "position": 105,
+    "created_at": "2025-07-07T13:51:32.000+03:00",
+    "updated_at": "2025-07-18T18:23:42.000+03:00",
+    "margin": "0.0",
+    "available_for_individual_clients": true,
+    "available_for_juridical_clients": true,
+    "title": "Оплата при получении",
+    "description": "",
+    "payment_delivery_variants": [
+      {
+        "created_at": "2025-07-07T13:51:32.000+03:00",
+        "delivery_variant_id": 3945277,
+        "id": 15082113
+      },
+      {
+        "created_at": "2025-07-07T13:51:32.000+03:00",
+        "delivery_variant_id": 4419071,
+        "id": 15082241
+      },
+      {
+        "created_at": "2025-07-07T13:51:32.000+03:00",
+        "delivery_variant_id": 12337409,
+        "id": 15082497
+      },
+      {
+        "created_at": "2026-01-17T13:58:06.000+03:00",
+        "delivery_variant_id": 25034489,
+        "id": 19303177
+      }
+    ]
+  }
+]

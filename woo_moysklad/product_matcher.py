@@ -154,3 +154,46 @@ class ProductMatcher:
             })
 
         return {"regular": regular, "opened": opened, "services": services}
+
+    def build_positions_from_normalized(self, line_items, delivery_services) -> dict[str, list[dict]]:
+        """Собрать позиции заказа из нормализованных данных.
+
+        Возвращает {"regular": [...], "opened": [], "services": [...]}.
+        Цена и количество уже готовы в NormalizedLineItem/NormalizedDeliveryService.
+        """
+        regular = []
+        opened = []
+        services = []
+
+        for item in line_items:
+            product_meta, is_opened = self.find_product(item.sku, item.title)
+            if product_meta is None:
+                continue
+
+            position = {
+                "quantity": item.quantity,
+                "price": item.price_cents,
+                "discount": 0,
+                "vat": 0,
+                "assortment": product_meta,
+            }
+
+            if is_opened:
+                opened.append(position)
+            else:
+                regular.append(position)
+
+        for svc in delivery_services:
+            service_meta = self.find_or_create_service(svc.name)
+            if service_meta is None:
+                continue
+
+            services.append({
+                "quantity": 1,
+                "price": svc.price_cents,
+                "discount": 0,
+                "vat": 0,
+                "assortment": service_meta,
+            })
+
+        return {"regular": regular, "opened": opened, "services": services}

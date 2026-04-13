@@ -63,6 +63,15 @@ class CounterpartyHandler:
     def __init__(self, ms_client):
         self.ms_client = ms_client
 
+    def find_or_create_from_normalized(self, customer) -> dict:
+        """Найти или создать контрагента из NormalizedCustomer."""
+        billing = {
+            "first_name": customer.full_name,
+            "phone": customer.phone,
+            "email": customer.email,
+        }
+        return self.find_or_create(billing)
+
     def find_or_create(self, billing: dict) -> dict:
         """Найти или создать контрагента в МС. Возвращает meta-ссылку.
 

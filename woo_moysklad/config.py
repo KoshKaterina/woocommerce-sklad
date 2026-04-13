@@ -63,6 +63,16 @@ class Config:
     MS_DELIVERY_TYPE_POSTAMAT_ID: str = ""
     MS_DELIVERY_TYPE_COURIER_ID: str = ""
 
+    # InSales (опционально)
+    INSALES_SHOP_URL: str = ""
+    INSALES_API_KEY: str = ""
+    INSALES_PASSWORD: str = ""
+
+    # МС: InSales-специфичные UUID
+    MS_ORGANIZATION_INSALES_ID: str = ""
+    MS_STATE_INSALES_NEW_ID: str = ""
+    MS_PROJECT_INSALES_ID: str = ""
+
     # Настройки
     MS_MAX_REQUESTS_PER_SECOND: int = 3
     HOST: str = "0.0.0.0"
