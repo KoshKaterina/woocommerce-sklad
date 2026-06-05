@@ -175,8 +175,6 @@ def test_only_opened_creates_one_order(sample_order):
 
 def test_mixed_order_number_suffix(sample_order):
     """Второй заказ (из видеообзора) получает суффикс _1 в номере."""
-    from woo_moysklad.core.order_processor import _TEST_ORDER_SUFFIX
-
     fake_positions = {
         "regular": [{"quantity": 1, "price": 100000, "assortment": {"meta": {"type": "product"}}}],
         "opened": [{"quantity": 1, "price": 50000, "assortment": {"meta": {"type": "product"}}}],
@@ -192,16 +190,15 @@ def test_mixed_order_number_suffix(sample_order):
 
     # Проверяем атрибуты — номер заказа
     order_id = str(sample_order["id"])
-    sfx = _TEST_ORDER_SUFFIX
 
     body1 = ms.post.call_args_list[0][0][1]
     attrs1 = body1["attributes"]
     order_num_attr1 = [a for a in attrs1
                        if "attr-order-num" in a["meta"]["href"]][0]
-    assert order_num_attr1["value"] == f"{order_id}{sfx}"
+    assert order_num_attr1["value"] == order_id
 
     body2 = ms.post.call_args_list[1][0][1]
     attrs2 = body2["attributes"]
     order_num_attr2 = [a for a in attrs2
                        if "attr-order-num" in a["meta"]["href"]][0]
-    assert order_num_attr2["value"] == f"{order_id}{sfx}_1"
+    assert order_num_attr2["value"] == f"{order_id}_1"

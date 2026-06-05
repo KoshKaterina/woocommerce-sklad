@@ -12,8 +12,6 @@ from woo_moysklad.core.product_matcher import ProductMatcher
 
 log = get_logger(__name__)
 
-_TEST_ORDER_SUFFIX = ""
-
 
 def _to_ms_moment(value):
     """ISO-дата(-время) → формат МС 'YYYY-MM-DD HH:MM:SS' (без таймзоны).
@@ -82,14 +80,14 @@ class OrderProcessor:
         order_id = str(order_data["id"])
         date_paid = order_data.get("date_paid")
         return self._mark_paid_internal(
-            base_order_number=f"{order_id}{_TEST_ORDER_SUFFIX}",
+            base_order_number=order_id,
             suffixes=["", "_1"],
             date_paid=date_paid,
             organization_id=self.config.MS_ORGANIZATION_ID,
         )
 
     def mark_paid_insales(self, order_data: dict) -> list[dict]:
-        """Маркировка оплаты заказа InSales (один заказ, с тестовым суффиксом номера)."""
+        """Маркировка оплаты заказа InSales (один заказ, с суффиксом номера ' Tangemshop')."""
         from woo_moysklad.insales.normalizer import _INSALES_ORDER_SUFFIX
         number = str(order_data.get("number") or order_data.get("id", ""))
         paid_at = order_data.get("paid_at")
@@ -151,30 +149,29 @@ class OrderProcessor:
 
         # --- 3. Определяем сценарий ---
         order_specs = []
-        sfx = _TEST_ORDER_SUFFIX
         cfg = self.config
 
         if has_regular and has_opened:
             # Смешанный: 2 заказа (только WC, InSales не имеет opened)
             order_specs.append({
-                "order_number": f"{order.order_number}{sfx}",
+                "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_ID,
                 "positions": regular + services,
             })
             order_specs.append({
-                "order_number": f"{order.order_number}{sfx}_1",
+                "order_number": f"{order.order_number}_1",
                 "store_id": cfg.MS_STORE_OPENED_ID or cfg.MS_STORE_ID,
                 "positions": opened,
             })
         elif has_opened:
             order_specs.append({
-                "order_number": f"{order.order_number}{sfx}",
+                "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_OPENED_ID or cfg.MS_STORE_ID,
                 "positions": opened + services,
             })
         else:
             order_specs.append({
-                "order_number": f"{order.order_number}{sfx}",
+                "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_ID,
                 "positions": regular + services,
             })

@@ -5,7 +5,6 @@ from datetime import datetime
 
 from woo_moysklad.logger import get_logger
 from woo_moysklad.core.field_mappers import is_manual_prepayment
-from woo_moysklad.core.order_processor import _TEST_ORDER_SUFFIX
 
 log = get_logger(__name__)
 
@@ -68,7 +67,7 @@ class WooSourceAdapter(SourceAdapter):
         return str(raw_order["id"])
 
     def ms_order_number(self, raw_order: dict) -> str:
-        return f"{raw_order['id']}{_TEST_ORDER_SUFFIX}"
+        return str(raw_order["id"])
 
     def should_mark_paid(self, raw_order: dict) -> bool:
         if raw_order.get("status") not in ("processing", "completed"):
