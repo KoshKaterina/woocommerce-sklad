@@ -88,7 +88,7 @@ class Config:
     UCOZ_POLL_INTERVAL_SECONDS: int = 60
 
     # Обратная синхронизация полей (reverse-sync, TODO §4)
-    FIELD_RESYNC_ENABLED: bool = False           # выключено по умолчанию (пишет в заказы МС)
+    FIELD_RESYNC_ENABLED: bool = True            # включено; отключить — FIELD_RESYNC_ENABLED=false в .env
     MS_SALES_CHANNEL_MARKETPLACE_ID: str = "25a34be1-54e2-11ef-0a80-0c7c00196716"  # «Маркетплейс», захардкожено
 
     # Настройки

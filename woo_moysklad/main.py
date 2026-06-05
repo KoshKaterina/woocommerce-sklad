@@ -67,6 +67,8 @@ async def lifespan(app: FastAPI):
     if config.FIELD_RESYNC_ENABLED:
         field_resync = FieldResync(config, ms_client)
         log.info("Reverse-sync полей включён")
+    else:
+        log.info("Reverse-sync полей выключен (FIELD_RESYNC_ENABLED=false)")
 
     reconciliation = Reconciliation(config, ms_client, adapters, field_resync=field_resync)
 

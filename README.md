@@ -147,7 +147,7 @@ woo_moysklad/                  — пакет приложения (только
     reconciliation.py      — периодическая сверка по всем адаптерам (раз в 3 мин, окно 9 мин)
     source_adapter.py      — WooSourceAdapter, InSalesSourceAdapter для Reconciliation
     field_resync.py        — обратная синхронизация доп.полей при ручных правках
-                             менеджера (TODO §4; off по флагу FIELD_RESYNC_ENABLED)
+                             менеджера (TODO §4; вкл по умолч., FIELD_RESYNC_ENABLED)
 
   woocommerce/             — источник WooCommerce
     client.py              — клиент WooCommerce REST API v3
@@ -186,7 +186,7 @@ docs/reference/                — справочные данные
 
 - ✅ WC-поток в проде, работает по вебхукам + сверка раз в 3 мин
 - 🟢 InSales-поток: код готов, покрыт тестами, работает через сверку; канал продаж TangemShop, организация ИП Абовян. Вебхук `/webhook/insales/order` — отложен (см. `TODO.md`)
-- 🟢 Обратная синхронизация полей из МС (TODO §4): реализована (`core/field_resync.py`), **выключена по умолчанию** флагом `FIELD_RESYNC_ENABLED`. Пересчитывает зависимые доп.поля при ручных правках менеджера; исключает канал «Маркетплейс». Тест на 1 заказе: `python scripts/resync_order.py --order <N> --dry-run`
+- 🟢 Обратная синхронизация полей из МС (TODO §4): реализована (`core/field_resync.py`), **включена по умолчанию** (`FIELD_RESYNC_ENABLED=true`; отключить — `=false` в `.env`). Пересчитывает зависимые доп.поля при ручных правках менеджера; исключает канал «Маркетплейс». Тест на 1 заказе: `python scripts/resync_order.py --order <N> --dry-run`
 - 🟡 uCoz-поток (TG-магазин): код готов, но **в WIP — не закоммичен** (пакет `woo_moysklad/ucoz/`). `main.py` импортирует его лениво (только при заданной `UCOZ_POLL_URL`)
 - ⚠️ Доп.поля МС обновлены (2026-06): «Вид доставки» теперь `long`, стоимости — `double`, «Прием платежа» — новый справочник. UUID новых полей/каналов **захардкожены** в `config.py` (`_HARDCODED_MS_IDS`, не из `.env`) — править прод-`.env` под них не нужно
 
