@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from woo_moysklad.counterparty_handler import (
+from woo_moysklad.core.counterparty_handler import (
     CounterpartyHandler,
     normalize_phone,
     split_full_name,
@@ -104,6 +104,54 @@ def test_update_company_type():
     billing = {"first_name": "Тест", "phone": "+79099371845", "email": ""}
     handler.find_or_create(billing)
     ms.put.assert_called_once()
+
+
+def test_enrich_placeholder_name_and_email():
+    """Найден контрагент с именем-телефоном и без почты → дозаполняем из заказа."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-123",
+        "name": "79778271097",        # заглушка-телефон
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty", "mediaType": "application/json"},
+    }])
+    billing = {"first_name": "Альберт Капитулов", "phone": "+79778271097",
+               "email": "kapitulov27@gmail.com"}
+    handler.find_or_create(billing)
+    ms.put.assert_called_once()
+    patch = ms.put.call_args[0][1]
+    assert patch["name"] == "Альберт Капитулов"
+    assert patch["firstName"] == "Альберт"
+    assert patch["lastName"] == "Капитулов"
+    assert patch["email"] == "kapitulov27@gmail.com"
+
+
+def test_enrich_does_not_overwrite_real_name():
+    """У контрагента уже реальное имя → имя не трогаем, но пустой email дозаполняем."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-9",
+        "name": "Мария Иванова",       # реальное имя — не перезаписываем
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty"},
+    }])
+    billing = {"first_name": "Другое Имя", "phone": "+79099371845", "email": "m@x.ru"}
+    handler.find_or_create(billing)
+    patch = ms.put.call_args[0][1]
+    assert "name" not in patch          # реальное имя сохранено
+    assert patch["email"] == "m@x.ru"   # email дозаполнен
+
+
+def test_enrich_skips_when_nothing_to_add():
+    """Реальное имя + есть email → PUT не нужен."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-7",
+        "name": "Мария Иванова",
+        "email": "old@x.ru",
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty"},
+    }])
+    billing = {"first_name": "Мария Иванова", "phone": "+79099371845", "email": "new@x.ru"}
+    handler.find_or_create(billing)
+    ms.put.assert_not_called()           # ничего не дозаполняем, email не затираем
 
 
 def test_multiple_counterparties():

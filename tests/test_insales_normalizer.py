@@ -6,19 +6,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from woo_moysklad.insales_normalizer import (
+from woo_moysklad.insales.normalizer import (
     build_customer_name,
     build_delivery_service_name,
-    expand_family_pack,
     extract_insales_promo_code,
     extract_insales_pvz_code,
     map_insales_delivery_sd,
     map_insales_delivery_type,
     map_insales_payment_type,
     normalize_insales_order,
+    resolve_to_ms_skus,
 )
 
-FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "insales_sample_order.json")
+FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+FIXTURE_PATH = os.path.join(FIXTURES_DIR, "insales_sample_order.json")
 
 
 @pytest.fixture
@@ -52,40 +53,75 @@ def test_customer_name_empty():
     assert build_customer_name({}) == "Без имени"
 
 
-# --- expand_family_pack ---
-
-def test_family_pack_black():
-    items = expand_family_pack("TG-FPB", 10000.0, 1)
-    assert len(items) == 2
-    assert items[0].sku == "TG128X3-B"
-    assert items[1].sku == "TG128X3-B"
-    assert items[0].price_cents + items[1].price_cents == 1000000
-    assert items[0].quantity == 1
-    assert items[1].quantity == 1
+def test_customer_name_phone_in_client_falls_back_to_shipping():
+    # InSales положил телефон в client.name → берём получателя из shipping_address
+    client = {"name": "79778271097", "phone": "+79778271097"}
+    shipping = {"name": "Андрей", "surname": "Петров"}
+    assert build_customer_name(client, shipping) == "Андрей Петров"
 
 
-def test_family_pack_color():
-    items = expand_family_pack("TG-FPSEA", 15000.0, 1)
-    assert len(items) == 2
-    assert items[0].sku == "TG128X3-B"
-    assert items[1].sku == "TG-SEA"
-    assert items[0].price_cents + items[1].price_cents == 1500000
+def test_customer_name_phone_in_client_no_shipping_name():
+    # Имени нет нигде → 'Без имени', а не телефон
+    assert build_customer_name({"name": "79778271097"}, {"phone": "+79778271097"}) == "Без имени"
 
 
-def test_family_pack_quantity():
-    """qty=2 → каждая позиция с qty=2."""
-    items = expand_family_pack("TG-FPSTEALTH", 12000.0, 2)
-    assert len(items) == 2
-    assert items[0].quantity == 2
-    assert items[1].quantity == 2
-    assert items[1].sku == "TG-STEALTH"
+def test_customer_name_real_name_ignores_shipping():
+    # Если у client нормальное имя — shipping не нужен
+    assert build_customer_name({"name": "Ирина", "surname": "Фролова"},
+                               {"name": "Кто-то"}) == "Ирина Фролова"
 
 
-def test_family_pack_odd_price():
-    """Нечётная цена: сумма двух половин = оригинал."""
-    items = expand_family_pack("TG-FPSEA", 7601.01, 1)
-    total = items[0].price_cents + items[1].price_cents
-    assert total == round(7601.01 * 100)
+# --- resolve_to_ms_skus ---
+
+def test_resolve_regular_product_passthrough():
+    """Обычный товар: SKU возвращается как есть (passthrough → ProductMatcher найдёт в МС)."""
+    assert resolve_to_ms_skus("TG-SEA", None) == ["TG-SEA"]
+    assert resolve_to_ms_skus("TG128X2-B", 1234) == ["TG128X2-B"]
+    # Новые товары в будущем — тоже passthrough, автоматически пойдут в API-поиск
+    assert resolve_to_ms_skus("TG-BRAND-NEW-2027", None) == ["TG-BRAND-NEW-2027"]
+
+
+def test_resolve_family_pack_black_by_sku():
+    """Family Pack чёрный → 2 × TG128X3-B."""
+    assert resolve_to_ms_skus("TG-FPB", None) == ["TG128X3-B", "TG128X3-B"]
+
+
+def test_resolve_family_pack_white_by_sku():
+    """Family Pack белый → TG128X3-B + TG130X3-B."""
+    assert resolve_to_ms_skus("TG-FPW", None) == ["TG128X3-B", "TG130X3-B"]
+
+
+def test_resolve_family_pack_color_by_sku():
+    """Family Pack цветной → TG128X3-B + цветной 3-карточный."""
+    assert resolve_to_ms_skus("TG-FPSEA", None) == ["TG128X3-B", "TG-SEA"]
+    assert resolve_to_ms_skus("TG-FPHYPERBLUE", None) == ["TG128X3-B", "TG-HYPERBLUE"]
+
+
+def test_resolve_sku_with_extra_dash():
+    """SKU с лишним дефисом → правильный SKU МС."""
+    assert resolve_to_ms_skus("TG-130X3-B", None) == ["TG130X3-B"]
+
+
+def test_resolve_empty_sku_by_variant_id():
+    """Пустой SKU + variant_id → маппинг по variant_id (список)."""
+    assert resolve_to_ms_skus("", 2053393393) == ["TG128X2-B"]
+    assert resolve_to_ms_skus("", 2053395137) == ["TG128X3-B", "TG130X3-B"]  # FP белый
+    assert resolve_to_ms_skus("", 2053412817) == ["TG128X3-B", "TG-HYPERBLUE"]
+
+
+def test_resolve_unknown_returns_empty_list():
+    """Неизвестная позиция (нет SKU и неизвестный variant_id) → пустой список."""
+    assert resolve_to_ms_skus("", 999999999) == []
+    assert resolve_to_ms_skus("", None) == []
+
+
+def test_resolve_unknown_sku_passthrough():
+    """Неизвестный SKU без маппинга — возвращается как есть (единственная позиция)."""
+    assert resolve_to_ms_skus("TG-NEW-2026", None) == ["TG-NEW-2026"]
+
+
+def test_resolve_strips_whitespace():
+    assert resolve_to_ms_skus("  TG-SEA  ", None) == ["TG-SEA"]
 
 
 # --- build_delivery_service_name ---
@@ -137,6 +173,11 @@ def test_delivery_sd_none():
     assert map_insales_delivery_sd({}) is None
 
 
+def test_delivery_sd_showroom_returns_none():
+    # Самовывоз из Шоурума — атрибут "Доставка (СД)" не ставим
+    assert map_insales_delivery_sd({}, "Самовывоз из Шоурума") is None
+
+
 # --- map_insales_delivery_type ---
 
 def test_delivery_type_pvz():
@@ -171,16 +212,49 @@ def test_pvz_code_none():
 
 # --- extract_insales_promo_code ---
 
-def test_promo_code_coupon():
-    assert extract_insales_promo_code([{"coupon": "SALE10"}]) == "SALE10"
-
-
-def test_promo_code_description():
-    assert extract_insales_promo_code([{"description": "PROMO"}]) == "PROMO"
+def test_promo_code_real_coupon_format():
+    """Реальный формат из InSales API (заказ #17665): description='Скидка по купону <CODE>'."""
+    discounts = [{
+        "description": "Скидка по купону tangem2026",
+        "discount_code_id": 39516505,
+    }]
+    assert extract_insales_promo_code(discounts) == "tangem2026"
 
 
 def test_promo_code_empty():
     assert extract_insales_promo_code([]) is None
+
+
+def test_promo_code_unparseable_description_returns_none():
+    """Description в неожиданном формате — None (с warning в лог)."""
+    discounts = [{
+        "description": "Какой-то нестандартный текст",
+        "discount_code_id": 123,
+    }]
+    assert extract_insales_promo_code(discounts) is None
+
+
+def test_promo_code_from_real_fixture():
+    """Полный заказ из InSales API (#17665) — промокод tangem2026 и цена со скидкой."""
+    fixture = os.path.join(FIXTURES_DIR, "insales_order_with_promo.json")
+    if not os.path.exists(fixture):
+        pytest.skip("Нет фикстуры заказа с промокодом")
+    with open(fixture, encoding="utf-8") as f:
+        order_data = json.load(f)
+    cfg = make_config()
+    order = normalize_insales_order(order_data, cfg)
+
+    assert order.promo_code == "tangem2026"
+    # Family Pack TG-FPSKY → 2 позиции (TG128X3-B + TG-SKY) на 1 товар InSales.
+    # sale_price=13690, quantity=3, discounts_amount=4107 (10% на строку).
+    # Цена со скидкой за Family Pack: (13690*3 - 4107)/3 = 12321 за штуку.
+    # В МС делим на 2 позиции: 12321/2 = 6160.50 → 6160 + 6161 копеек при per-cent split.
+    # Проверяем суммарную выручку (qty × price) по товарным позициям:
+    total_items_cents = sum(li.price_cents * li.quantity for li in order.line_items)
+    assert total_items_cents == 3696300  # 36 963 ₽ — совпадает с total_price InSales
+
+    # estimated_cost = сумма товаров со скидкой, целые рубли
+    assert order.estimated_cost == "36963"
 
 
 # --- normalize_insales_order (интеграционный) ---
@@ -240,8 +314,10 @@ def test_normalize_cod_margins():
 
     assert order.is_cod is True
     assert order.cod_margin_amount_cents == 31655
-    assert order.delivery_cost_attr_value == "847.55"
-    assert order.total_to_pay == "6647.55"
+    # Доставка + наценка = 531 + 316.55 = 847.55 → округляем до целых рублей
+    assert order.delivery_cost_attr_value == "848"
+    # total_price=6647.55 → округляем до целых рублей
+    assert order.total_to_pay == "6648"
     assert order.payment_type_key == "noncash"
     # Услуга доставки: всегда полная цена
     assert len(order.delivery_services) == 1

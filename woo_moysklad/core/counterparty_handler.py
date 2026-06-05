@@ -2,10 +2,15 @@
 
 import re
 
-from .exceptions import CounterpartyError
-from .logger import get_logger
+from woo_moysklad.exceptions import CounterpartyError
+from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
+
+
+def _has_letters(s: str) -> bool:
+    """True, если в строке есть хотя бы одна буква (значит это имя, а не телефон)."""
+    return any(ch.isalpha() for ch in s)
 
 
 def split_full_name(full_name: str) -> tuple[str, str, str]:
@@ -72,6 +77,28 @@ class CounterpartyHandler:
         }
         return self.find_or_create(billing)
 
+    def _build_enrichment_patch(self, counterparty: dict, full_name: str, email: str) -> dict:
+        """Поля для дозаполнения существующего контрагента данными из заказа.
+
+        Имя — только если у существующего оно «заглушка» (нет букв, обычно телефон)
+        или пустое: тогда ставим реальное ФИО из заказа. Реальное имя НЕ трогаем.
+        Email — только если у существующего пусто. Так не затираем правки менеджера.
+        """
+        patch: dict = {}
+
+        existing_name = (counterparty.get("name") or "").strip()
+        if full_name and _has_letters(full_name) and not _has_letters(existing_name):
+            first, last, middle = split_full_name(full_name)
+            patch["name"] = full_name
+            patch["firstName"] = first
+            patch["lastName"] = last
+            patch["middleName"] = middle
+
+        if email and not (counterparty.get("email") or "").strip():
+            patch["email"] = email
+
+        return patch
+
     def find_or_create(self, billing: dict) -> dict:
         """Найти или создать контрагента в МС. Возвращает meta-ссылку.
 
@@ -99,14 +126,19 @@ class CounterpartyHandler:
 
                 counterparty = rows[0]
                 cp_meta = counterparty["meta"]
+                cp_id = counterparty["id"]
 
-                # Если companyType != "individual" → обновить
+                # Дозаполняем имя/почту из заказа (внешние системы, напр. amoCRM,
+                # часто создают контрагента с именем-телефоном и без email).
+                patch = self._build_enrichment_patch(counterparty, full_name, email)
                 if counterparty.get("companyType") != "individual":
-                    log.info("Обновляем companyType на individual", name=counterparty.get("name"))
-                    cp_id = counterparty["id"]
-                    self.ms_client.put(f"entity/counterparty/{cp_id}", {"companyType": "individual"})
+                    patch["companyType"] = "individual"
+                if patch:
+                    self.ms_client.put(f"entity/counterparty/{cp_id}", patch)
+                    log.info("Контрагент дозаполнен данными из заказа",
+                             id=cp_id, fields=list(patch.keys()))
 
-                log.info("Контрагент найден", name=counterparty.get("name"), id=counterparty["id"])
+                log.info("Контрагент найден", name=counterparty.get("name"), id=cp_id)
                 return {"meta": cp_meta}
 
             # Не найден — создаём
