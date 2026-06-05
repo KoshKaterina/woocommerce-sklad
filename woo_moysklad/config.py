@@ -9,6 +9,16 @@ from woo_moysklad.logger import get_logger, setup_logging
 
 log = get_logger(__name__)
 
+# UUID конкретного аккаунта МС, захардкоженные в дефолтах Config: НЕ читаются из .env
+# (мигрированные поля 2026-06 + каналы). Чтобы не править прод-.env при деплое и чтобы
+# старые значения в .env их не перебивали. Менять только в коде.
+_HARDCODED_MS_IDS = frozenset({
+    "MS_ATTR_DELIVERY_TYPE_ID", "MS_ATTR_DELIVERY_COST_ID", "MS_ATTR_ESTIMATED_COST_ID",
+    "MS_ATTR_TOTAL_TO_PAY_ID", "MS_ATTR_PAYMENT_TYPE_ID", "MS_ATTR_COURIER_COMMENT_ID",
+    "MS_CUSTOMENTITY_PAYMENT_TYPE_ID", "MS_PAYMENT_TYPE_PREPAID_ID", "MS_PAYMENT_TYPE_NONCASH_ID",
+    "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
+})
+
 
 @dataclass
 class Config:
@@ -33,25 +43,26 @@ class Config:
 
     # UUID справочников (customentity)
     MS_CUSTOMENTITY_DELIVERY_SD_ID: str = ""
-    MS_CUSTOMENTITY_PAYMENT_TYPE_ID: str = ""
+    MS_CUSTOMENTITY_PAYMENT_TYPE_ID: str = "00a648ac-60ac-11f1-0a80-1cc60006b0c8"  # захардкожено
     # Примечание: «Вид доставки» с 2026-06 — поле типа long (0-5), не справочник
 
-    # UUID доп. полей заказа покупателя
+    # UUID доп. полей заказа покупателя — из .env (зависят от аккаунта, не менялись):
     MS_ATTR_ORDER_NUMBER_ID: str = ""
     MS_ATTR_PAYMENT_METHOD_ID: str = ""
     MS_ATTR_PROMO_CODE_ID: str = ""
     MS_ATTR_DELIVERY_SD_ID: str = ""
-    MS_ATTR_DELIVERY_TYPE_ID: str = ""
     MS_ATTR_PVZ_CODE_ID: str = ""
-    MS_ATTR_DELIVERY_COST_ID: str = ""
-    MS_ATTR_ESTIMATED_COST_ID: str = ""
-    MS_ATTR_TOTAL_TO_PAY_ID: str = ""
-    MS_ATTR_PAYMENT_TYPE_ID: str = ""
-    MS_ATTR_COURIER_COMMENT_ID: str = ""
+    # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_MS_IDS):
+    MS_ATTR_DELIVERY_TYPE_ID: str = "8c337f77-5d2b-11f1-0a80-1cae0026fe2e"
+    MS_ATTR_DELIVERY_COST_ID: str = "6197cf57-5d04-11f1-0a80-0e1800256067"
+    MS_ATTR_ESTIMATED_COST_ID: str = "6197d336-5d04-11f1-0a80-0e1800256068"
+    MS_ATTR_TOTAL_TO_PAY_ID: str = "80814b14-5d04-11f1-0a80-1d5a00242f6e"
+    MS_ATTR_PAYMENT_TYPE_ID: str = "574102c9-60ac-11f1-0a80-0e5500051d84"
+    MS_ATTR_COURIER_COMMENT_ID: str = "ed537fe2-5d04-11f1-0a80-0e18002576eb"
 
-    # UUID элементов справочника "Прием платежа"
-    MS_PAYMENT_TYPE_PREPAID_ID: str = ""
-    MS_PAYMENT_TYPE_NONCASH_ID: str = ""
+    # UUID элементов справочника "Прием платежа" — захардкожено
+    MS_PAYMENT_TYPE_PREPAID_ID: str = "0db95b3b-60ac-11f1-0a80-1b9f0005d237"   # "1"
+    MS_PAYMENT_TYPE_NONCASH_ID: str = "16bb90ce-60ac-11f1-0a80-11190005b58b"   # "2"
 
     # UUID элементов справочника "Доставка (СД)"
     MS_DELIVERY_SD_CDEK_ID: str = ""
@@ -69,7 +80,7 @@ class Config:
     MS_ORGANIZATION_INSALES_ID: str = ""
     MS_STATE_INSALES_NEW_ID: str = ""
     MS_PROJECT_INSALES_ID: str = ""
-    MS_SALES_CHANNEL_INSALES_ID: str = ""  # канал продаж "TangemShop"
+    MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop, захардкожено
 
     # uCoz (опционально)
     UCOZ_POLL_URL: str = ""
@@ -78,7 +89,7 @@ class Config:
 
     # Обратная синхронизация полей (reverse-sync, TODO §4)
     FIELD_RESYNC_ENABLED: bool = False           # выключено по умолчанию (пишет в заказы МС)
-    MS_SALES_CHANNEL_MARKETPLACE_ID: str = ""    # канал «Маркетплейс» — исключается из resync
+    MS_SALES_CHANNEL_MARKETPLACE_ID: str = "25a34be1-54e2-11ef-0a80-0c7c00196716"  # «Маркетплейс», захардкожено
 
     # Настройки
     MS_MAX_REQUESTS_PER_SECOND: int = 3
@@ -93,8 +104,10 @@ def load_config(env_path: str | None = None) -> Config:
 
     config = Config()
 
-    # Заполнить все поля из переменных окружения
+    # Заполнить все поля из переменных окружения (кроме захардкоженных UUID)
     for field_name in config.__dataclass_fields__:
+        if field_name in _HARDCODED_MS_IDS:
+            continue
         env_val = os.getenv(field_name)
         if env_val is not None:
             field_type = type(getattr(config, field_name))
