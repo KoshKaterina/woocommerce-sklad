@@ -9,14 +9,17 @@ from woo_moysklad.logger import get_logger, setup_logging
 
 log = get_logger(__name__)
 
-# UUID конкретного аккаунта МС, захардкоженные в дефолтах Config: НЕ читаются из .env
-# (мигрированные поля 2026-06 + каналы). Чтобы не править прод-.env при деплое и чтобы
-# старые значения в .env их не перебивали. Менять только в коде.
-_HARDCODED_MS_IDS = frozenset({
+# Поля с захардкоженными дефолтами конкретного аккаунта/источника: НЕ читаются из .env
+# (мигрированные UUID полей/каналов 2026-06 + параметры InSales-источника). Чтобы не
+# править прод-.env при деплое и чтобы старые значения в .env их не перебивали.
+# Секреты (токены, INSALES_API_KEY/PASSWORD) сюда НЕ входят — они только из .env.
+_HARDCODED_DEFAULTS = frozenset({
     "MS_ATTR_DELIVERY_TYPE_ID", "MS_ATTR_DELIVERY_COST_ID", "MS_ATTR_ESTIMATED_COST_ID",
     "MS_ATTR_TOTAL_TO_PAY_ID", "MS_ATTR_PAYMENT_TYPE_ID", "MS_ATTR_COURIER_COMMENT_ID",
     "MS_CUSTOMENTITY_PAYMENT_TYPE_ID", "MS_PAYMENT_TYPE_PREPAID_ID", "MS_PAYMENT_TYPE_NONCASH_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
+    "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
+    "MS_PROJECT_INSALES_ID",
 })
 
 
@@ -52,7 +55,7 @@ class Config:
     MS_ATTR_PROMO_CODE_ID: str = ""
     MS_ATTR_DELIVERY_SD_ID: str = ""
     MS_ATTR_PVZ_CODE_ID: str = ""
-    # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_MS_IDS):
+    # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS):
     MS_ATTR_DELIVERY_TYPE_ID: str = "8c337f77-5d2b-11f1-0a80-1cae0026fe2e"
     MS_ATTR_DELIVERY_COST_ID: str = "6197cf57-5d04-11f1-0a80-0e1800256067"
     MS_ATTR_ESTIMATED_COST_ID: str = "6197d336-5d04-11f1-0a80-0e1800256068"
@@ -71,16 +74,16 @@ class Config:
     # «Вид доставки» теперь long-поле: коды (1=ПВЗ, 2=курьер, 3=почтомат)
     # зашиты в OrderProcessor._resolve_delivery_type_num — отдельные UUID не нужны
 
-    # InSales (опционально)
-    INSALES_SHOP_URL: str = ""
+    # InSales: только ключ и пароль — из .env (секреты). Остальное захардкожено.
     INSALES_API_KEY: str = ""
     INSALES_PASSWORD: str = ""
+    INSALES_SHOP_URL: str = "tangemshop.ru"  # захардкожено
 
-    # МС: InSales-специфичные UUID
-    MS_ORGANIZATION_INSALES_ID: str = ""
-    MS_STATE_INSALES_NEW_ID: str = ""
-    MS_PROJECT_INSALES_ID: str = ""
-    MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop, захардкожено
+    # МС: InSales-специфичные UUID — захардкожено (см. _HARDCODED_DEFAULTS)
+    MS_ORGANIZATION_INSALES_ID: str = "20413198-d891-11ef-0a80-10c20004fabc"  # ИП Абовян
+    MS_STATE_INSALES_NEW_ID: str = "0f062083-c413-11ee-0a80-13fd002f64a5"
+    MS_PROJECT_INSALES_ID: str = "0fd3c635-d892-11ef-0a80-03c300056ff7"
+    MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop
 
     # uCoz (опционально)
     UCOZ_POLL_URL: str = ""
@@ -106,7 +109,7 @@ def load_config(env_path: str | None = None) -> Config:
 
     # Заполнить все поля из переменных окружения (кроме захардкоженных UUID)
     for field_name in config.__dataclass_fields__:
-        if field_name in _HARDCODED_MS_IDS:
+        if field_name in _HARDCODED_DEFAULTS:
             continue
         env_val = os.getenv(field_name)
         if env_val is not None:
