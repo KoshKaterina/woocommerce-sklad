@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
-from .logger import get_logger, setup_logging
+from woo_moysklad.logger import get_logger, setup_logging
 
 log = get_logger(__name__)
 
@@ -33,8 +33,8 @@ class Config:
 
     # UUID справочников (customentity)
     MS_CUSTOMENTITY_DELIVERY_SD_ID: str = ""
-    MS_CUSTOMENTITY_DELIVERY_TYPE_ID: str = ""
     MS_CUSTOMENTITY_PAYMENT_TYPE_ID: str = ""
+    # Примечание: «Вид доставки» с 2026-06 — поле типа long (0-5), не справочник
 
     # UUID доп. полей заказа покупателя
     MS_ATTR_ORDER_NUMBER_ID: str = ""
@@ -56,12 +56,9 @@ class Config:
     # UUID элементов справочника "Доставка (СД)"
     MS_DELIVERY_SD_CDEK_ID: str = ""
     MS_DELIVERY_SD_YANDEX_ID: str = ""
-    MS_DELIVERY_SD_PICKUP_ID: str = ""
 
-    # UUID элементов справочника "Вид доставки"
-    MS_DELIVERY_TYPE_PVZ_ID: str = ""
-    MS_DELIVERY_TYPE_POSTAMAT_ID: str = ""
-    MS_DELIVERY_TYPE_COURIER_ID: str = ""
+    # «Вид доставки» теперь long-поле: коды (1=ПВЗ, 2=курьер, 3=почтомат)
+    # зашиты в OrderProcessor._resolve_delivery_type_num — отдельные UUID не нужны
 
     # InSales (опционально)
     INSALES_SHOP_URL: str = ""
@@ -72,6 +69,16 @@ class Config:
     MS_ORGANIZATION_INSALES_ID: str = ""
     MS_STATE_INSALES_NEW_ID: str = ""
     MS_PROJECT_INSALES_ID: str = ""
+    MS_SALES_CHANNEL_INSALES_ID: str = ""  # канал продаж "TangemShop"
+
+    # uCoz (опционально)
+    UCOZ_POLL_URL: str = ""
+    UCOZ_STATE_PATH: str = "data/ucoz_state.json"
+    UCOZ_POLL_INTERVAL_SECONDS: int = 60
+
+    # Обратная синхронизация полей (reverse-sync, TODO §4)
+    FIELD_RESYNC_ENABLED: bool = False           # выключено по умолчанию (пишет в заказы МС)
+    MS_SALES_CHANNEL_MARKETPLACE_ID: str = ""    # канал «Маркетплейс» — исключается из resync
 
     # Настройки
     MS_MAX_REQUESTS_PER_SECOND: int = 3
@@ -91,7 +98,9 @@ def load_config(env_path: str | None = None) -> Config:
         env_val = os.getenv(field_name)
         if env_val is not None:
             field_type = type(getattr(config, field_name))
-            if field_type == int:
+            if field_type == bool:
+                setattr(config, field_name, env_val.strip().lower() in ("1", "true", "yes", "on"))
+            elif field_type == int:
                 setattr(config, field_name, int(env_val))
             else:
                 setattr(config, field_name, env_val)

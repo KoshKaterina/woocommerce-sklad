@@ -5,14 +5,14 @@ import os
 
 import pytest
 
-from woo_moysklad.field_mappers import (
+from woo_moysklad.core.field_mappers import (
     build_attribute,
     build_shipment_address,
     detect_delivery_type,
     extract_courier_comment,
     extract_promo_code,
     extract_pvz_code,
-    is_card_payment,
+    is_manual_prepayment,
     map_delivery_sd,
     map_delivery_type,
     map_payment_type,
@@ -95,6 +95,9 @@ def test_map_payment_type_card():
 def test_map_payment_type_online():
     assert map_payment_type("Онлайн оплата") == "prepaid"
 
+def test_map_payment_type_bank_transfer():
+    assert map_payment_type("Банковский перевод") == "prepaid"
+
 def test_map_payment_type_cod():
     assert map_payment_type("При получении") == "noncash"
 
@@ -102,17 +105,21 @@ def test_map_payment_type_unknown():
     assert map_payment_type("Биткоин") is None
 
 
-# --- is_card_payment ---
+# --- is_manual_prepayment ---
 
-def test_is_card_payment_true():
-    assert is_card_payment("На карту") is True
+def test_is_manual_prepayment_card():
+    assert is_manual_prepayment("На карту") is True
 
-def test_is_card_payment_false():
-    assert is_card_payment("При получении") is False
+def test_is_manual_prepayment_bank_transfer():
+    # "Банковский перевод" ведёт себя как "На карту"
+    assert is_manual_prepayment("Банковский перевод") is True
 
-def test_is_card_payment_online():
-    # "Онлайн оплата" — не "на карту"
-    assert is_card_payment("Онлайн оплата") is False
+def test_is_manual_prepayment_cod():
+    assert is_manual_prepayment("При получении") is False
+
+def test_is_manual_prepayment_online():
+    # "Онлайн оплата" — онлайн-касса, оплачивается сразу, не ручная предоплата
+    assert is_manual_prepayment("Онлайн оплата") is False
 
 
 # --- extract_courier_comment ---
@@ -141,8 +148,9 @@ def test_delivery_sd_cdek():
 def test_delivery_sd_yandex():
     assert map_delivery_sd("Курьерская по Москве и МО") == "yandex"
 
-def test_delivery_sd_pickup():
-    assert map_delivery_sd("Самовывоз из офиса Sunscrypt") == "pickup"
+def test_delivery_sd_pickup_returns_none():
+    # Самовывоз из офиса — атрибут "Доставка (СД)" не ставим, достаточно услуги в заказе
+    assert map_delivery_sd("Самовывоз из офиса Sunscrypt") is None
 
 def test_delivery_sd_unknown():
     assert map_delivery_sd("Наценка за наложенный платеж") is None
@@ -168,9 +176,11 @@ def test_build_attribute_string():
     assert attr["value"] == "hello"
     assert "attributemetadata" in attr["meta"]["type"]
 
-def test_build_attribute_number_as_string():
-    attr = build_attribute("test-uuid", 1375)
-    assert attr["value"] == "1375"
+def test_build_attribute_number_preserved():
+    # Числа передаются числом (поля МС long/double), строки — строкой
+    assert build_attribute("test-uuid", 1375)["value"] == 1375
+    assert build_attribute("test-uuid", 645.0)["value"] == 645.0
+    assert build_attribute("test-uuid", "645")["value"] == "645"
 
 def test_build_attribute_none():
     assert build_attribute("test-uuid", None) is None

@@ -2,7 +2,7 @@
 
 import re
 
-from .logger import get_logger
+from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
 
@@ -70,12 +70,12 @@ def extract_pvz_code(order_data: dict) -> str | None:
 def map_payment_type(payment_method_title: str) -> str | None:
     """Определить тип приёма платежа для справочника МС.
 
-    "на карту" или "онлайн" → "prepaid" (1. Заказ предоплачен)
-    "при получении"         → "noncash" (2. Безналичная оплата)
-    иначе                   → None (WARNING)
+    "на карту" / "онлайн" / "банковский перевод" → "prepaid" (1. Заказ предоплачен)
+    "при получении"                              → "noncash" (2. Безналичная оплата)
+    иначе                                        → None (WARNING)
     """
     lower = payment_method_title.lower()
-    if "на карту" in lower or "онлайн" in lower:
+    if "на карту" in lower or "онлайн" in lower or "банковский перевод" in lower:
         return "prepaid"
     if "при получении" in lower:
         return "noncash"
@@ -85,13 +85,18 @@ def map_payment_type(payment_method_title: str) -> str | None:
     return None
 
 
-def is_card_payment(payment_method_title: str) -> bool:
-    """Проверить, является ли оплата 'На карту' (предоплата картой).
+def is_manual_prepayment(payment_method_title: str) -> bool:
+    """Предоплата, которую менеджер подтверждает вручную (деньги приходят вне интеграции).
 
-    "На карту" → True
-    "Онлайн оплата", "При получении" и прочее → False
+    "На карту", "Банковский перевод" → True
+    "Онлайн оплата" (онлайн-касса, оплачивается сразу), "При получении" и прочее → False
+
+    Влияет одинаково на все источники-следствия: бесплатная доставка СДЭК,
+    is_paid=False (не помечаем оплаченным автоматически), пропуск заказа в
+    reconciliation и webhook mark_paid (ждём ручной отметки менеджера).
     """
-    return "на карту" in payment_method_title.lower()
+    lower = payment_method_title.lower()
+    return "на карту" in lower or "банковский перевод" in lower
 
 
 def extract_courier_comment(order_data: dict) -> str | None:
@@ -109,7 +114,8 @@ def extract_promo_code(order_data: dict) -> str | None:
 def map_delivery_sd(method_title: str) -> str | None:
     """Определить элемент справочника 'Доставка (СД)' по method_title.
 
-    Возвращает ключ для конфига: "cdek", "yandex", "pickup" или None.
+    Возвращает ключ для конфига: "cdek", "yandex" или None.
+    Для самовывоза из офиса атрибут не заполняется — достаточно услуги в заказе.
     """
     lower = method_title.lower()
     if "cdek" in lower or "сдэк" in lower:
@@ -117,7 +123,7 @@ def map_delivery_sd(method_title: str) -> str | None:
     if "курьерская по" in lower or "доставка курьером по москве" in lower.replace("  ", " "):
         return "yandex"
     if "самовывоз из офиса" in lower or "самовывоз офис" in lower:
-        return "pickup"
+        return None  # атрибут "Доставка (СД)" для самовывоза из офиса не ставим
 
     log.warning("Неизвестная служба доставки, поле 'Доставка (СД)' не заполнено",
                 method_title=method_title)
@@ -172,8 +178,11 @@ def build_attribute(attr_uuid: str, value, is_custom_entity: bool = False,
                 "mediaType": "application/json",
             }
         }
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        # Числовые поля МС (long / double) — передаём числом, не строкой
+        attr["value"] = value
     else:
-        # Строковое значение
+        # Строковое значение (string / text)
         attr["value"] = str(value)
 
     return attr

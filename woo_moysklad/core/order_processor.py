@@ -1,17 +1,45 @@
 # Основной обработчик заказа: сборка и отправка в Мой Склад
 
 import time
+from datetime import datetime
 
-from .counterparty_handler import CounterpartyHandler
-from .exceptions import CounterpartyError, OrderProcessingError
-from .field_mappers import build_attribute
-from .logger import get_logger
-from .normalized_order import NormalizedOrder
-from .product_matcher import ProductMatcher
+from woo_moysklad.core.counterparty_handler import CounterpartyHandler
+from woo_moysklad.exceptions import CounterpartyError, OrderProcessingError
+from woo_moysklad.core.field_mappers import build_attribute
+from woo_moysklad.logger import get_logger
+from woo_moysklad.core.normalized_order import NormalizedOrder
+from woo_moysklad.core.product_matcher import ProductMatcher
 
 log = get_logger(__name__)
 
 _TEST_ORDER_SUFFIX = ""
+
+
+def _to_ms_moment(value):
+    """ISO-дата(-время) → формат МС 'YYYY-MM-DD HH:MM:SS' (без таймзоны).
+
+    WC отдаёт date_paid без таймзоны, InSales paid_at — с offset (+03:00),
+    который МС не принимает. None если пусто/невалидно.
+    """
+    if not value:
+        return None
+    s = str(value).strip()
+    try:
+        return datetime.fromisoformat(s).strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        # запасной разбор: убрать 'T' и отбросить таймзону/дробную часть
+        return s.replace("T", " ")[:19]
+
+
+def _to_number(value):
+    """Привести значение стоимости к числу (для double-полей МС). None если пусто/невалидно."""
+    if value is None or value == "":
+        return None
+    try:
+        f = float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+    return int(f) if f.is_integer() else f
 
 
 class OrderProcessor:
@@ -33,23 +61,47 @@ class OrderProcessor:
 
         Обратная совместимость: reconciliation.py и main.py вызывают этот метод.
         """
-        from .wc_normalizer import normalize_wc_order
+        from woo_moysklad.woocommerce.normalizer import normalize_wc_order
         normalized = normalize_wc_order(order_data)
         return self.process_normalized_order(normalized)
 
     def process_insales_order(self, order_data: dict) -> list[dict]:
         """Точка входа InSales: нормализация → обработка."""
-        from .insales_normalizer import normalize_insales_order
+        from woo_moysklad.insales.normalizer import normalize_insales_order
         normalized = normalize_insales_order(order_data, self.config)
         return self.process_normalized_order(normalized)
 
+    def process_ucoz_order(self, raw_data: dict) -> list[dict]:
+        """Точка входа uCoz: нормализация → обработка."""
+        from woo_moysklad.ucoz.normalizer import normalize_ucoz_order
+        normalized = normalize_ucoz_order(raw_data, self.config)
+        return self.process_normalized_order(normalized)
+
     def mark_paid(self, order_data: dict) -> list[dict]:
-        """Проставить оплату WC (обратная совместимость)."""
+        """Маркировка оплаты заказа WooCommerce (основной + _1 если был вскрытый)."""
         order_id = str(order_data["id"])
-        payment_title = order_data.get("payment_method_title", "")
         date_paid = order_data.get("date_paid")
-        organization_id = self.config.MS_ORGANIZATION_ID
-        return self._mark_paid_internal(order_id, payment_title, date_paid, organization_id)
+        return self._mark_paid_internal(
+            base_order_number=f"{order_id}{_TEST_ORDER_SUFFIX}",
+            suffixes=["", "_1"],
+            date_paid=date_paid,
+            organization_id=self.config.MS_ORGANIZATION_ID,
+        )
+
+    def mark_paid_insales(self, order_data: dict) -> list[dict]:
+        """Маркировка оплаты заказа InSales (один заказ, с тестовым суффиксом номера)."""
+        from woo_moysklad.insales.normalizer import _INSALES_ORDER_SUFFIX
+        number = str(order_data.get("number") or order_data.get("id", ""))
+        paid_at = order_data.get("paid_at")
+        organization_id = (
+            self.config.MS_ORGANIZATION_INSALES_ID or self.config.MS_ORGANIZATION_ID
+        )
+        return self._mark_paid_internal(
+            base_order_number=f"{number}{_INSALES_ORDER_SUFFIX}",
+            suffixes=[""],
+            date_paid=paid_at,
+            organization_id=organization_id,
+        )
 
     # ──────────────────────────────────────────────
     # Универсальная обработка NormalizedOrder
@@ -160,17 +212,16 @@ class OrderProcessor:
         mapping = {
             "cdek": self.config.MS_DELIVERY_SD_CDEK_ID,
             "yandex": self.config.MS_DELIVERY_SD_YANDEX_ID,
-            "pickup": self.config.MS_DELIVERY_SD_PICKUP_ID,
         }
         return mapping.get(key)
 
-    def _resolve_delivery_type_id(self, key: str) -> str | None:
-        mapping = {
-            "pvz": self.config.MS_DELIVERY_TYPE_PVZ_ID,
-            "postamat": self.config.MS_DELIVERY_TYPE_POSTAMAT_ID,
-            "courier": self.config.MS_DELIVERY_TYPE_COURIER_ID,
-        }
-        return mapping.get(key)
+    def _resolve_delivery_type_num(self, key: str) -> int | None:
+        """Вид доставки → числовой код нового поля (long).
+
+        Справочник МС: 0 склад / 1 ПВЗ / 2 курьер / 3 почтомат / 4 почта / 5 экспорт.
+        Интеграция выставляет только pvz / courier / postamat.
+        """
+        return {"pvz": 1, "courier": 2, "postamat": 3}.get(key)
 
     def _resolve_payment_type_id(self, key: str) -> str | None:
         mapping = {
@@ -289,23 +340,17 @@ class OrderProcessor:
                 if attr:
                     attributes.append(attr)
 
-        # Вид доставки (customentity)
+        # Вид доставки (long: 1=ПВЗ, 2=курьер, 3=почтомат)
         if order.delivery_type_key:
-            dt_element_id = self._resolve_delivery_type_id(order.delivery_type_key)
-            if dt_element_id:
-                attr = build_attribute(
-                    cfg.MS_ATTR_DELIVERY_TYPE_ID, "custom",
-                    is_custom_entity=True,
-                    dictionary_id=cfg.MS_CUSTOMENTITY_DELIVERY_TYPE_ID,
-                    element_id=dt_element_id,
-                )
-                if attr:
-                    attributes.append(attr)
+            dt_num = self._resolve_delivery_type_num(order.delivery_type_key)
+            if dt_num is not None:
+                self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_TYPE_ID, dt_num)
 
         self._add_attr(attributes, cfg.MS_ATTR_PVZ_CODE_ID, order.pvz_code)
-        self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_COST_ID, delivery_cost)
-        self._add_attr(attributes, cfg.MS_ATTR_ESTIMATED_COST_ID, estimated_cost)
-        self._add_attr(attributes, cfg.MS_ATTR_TOTAL_TO_PAY_ID, total_to_pay)
+        # Стоимости — поля double, передаём числом
+        self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_COST_ID, _to_number(delivery_cost))
+        self._add_attr(attributes, cfg.MS_ATTR_ESTIMATED_COST_ID, _to_number(estimated_cost))
+        self._add_attr(attributes, cfg.MS_ATTR_TOTAL_TO_PAY_ID, _to_number(total_to_pay))
         self._add_attr(attributes, cfg.MS_ATTR_COURIER_COMMENT_ID, order.description)
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
 
@@ -327,8 +372,9 @@ class OrderProcessor:
             "rate": {"currency": self.ms.make_meta("currency", cfg.MS_CURRENCY_RUB_ID)},
         }
 
-        if cfg.MS_SALES_CHANNEL_ID:
-            body["salesChannel"] = self.ms.make_meta("saleschannel", cfg.MS_SALES_CHANNEL_ID)
+        sales_channel_id = order.sales_channel_id or cfg.MS_SALES_CHANNEL_ID
+        if sales_channel_id:
+            body["salesChannel"] = self.ms.make_meta("saleschannel", sales_channel_id)
 
         if state_id:
             body["state"] = self.ms.make_state_meta("customerorder", state_id)
@@ -347,19 +393,22 @@ class OrderProcessor:
 
         return body
 
-    def _mark_paid_internal(self, order_id: str, payment_title: str,
+    def _mark_paid_internal(self, *, base_order_number: str, suffixes: list[str],
                             date_paid: str | None,
                             organization_id: str) -> list[dict]:
-        """Общая логика маркировки оплаты."""
-        log.info("Проставление оплаты", order_id=order_id)
+        """Создать платежи в МС для заказов с именами `base_order_number{suffix}`.
+
+        Для первого suffix'а делает retry (гонка с созданием заказа из вебхука).
+        """
+        log.info("Проставление оплаты", base_order_number=base_order_number)
 
         results = []
-        sfx = _TEST_ORDER_SUFFIX
-        for suffix in (sfx, f"{sfx}_1"):
-            order_number = f"{order_id}{suffix}"
+        first_suffix = suffixes[0] if suffixes else ""
+        for suffix in suffixes:
+            order_number = f"{base_order_number}{suffix}"
             existing = self._find_existing_order(order_number)
 
-            if not existing and suffix == sfx:
+            if not existing and suffix == first_suffix:
                 for attempt in range(3):
                     time.sleep(2 * (attempt + 1))
                     existing = self._find_existing_order(order_number)
@@ -379,7 +428,7 @@ class OrderProcessor:
                          order_number=order_number, payed_sum=existing.get("payedSum"))
                 continue
 
-            moment = date_paid.replace("T", " ") if date_paid else None
+            moment = _to_ms_moment(date_paid)
 
             payment_body = {
                 "organization": self.ms.make_meta("organization", organization_id),

@@ -7,7 +7,21 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from woo_moysklad.exceptions import CounterpartyError, OrderProcessingError
-from woo_moysklad.order_processor import OrderProcessor
+from woo_moysklad.core.order_processor import OrderProcessor, _to_ms_moment
+
+
+# --- _to_ms_moment (формат даты для платежа МС) ---
+
+def test_ms_moment_insales_with_tz():
+    # InSales paid_at с таймзоной → без таймзоны, формат МС
+    assert _to_ms_moment("2026-06-05T10:27:00+03:00") == "2026-06-05 10:27:00"
+
+def test_ms_moment_wc_no_tz():
+    assert _to_ms_moment("2026-06-05T10:27:00") == "2026-06-05 10:27:00"
+
+def test_ms_moment_empty():
+    assert _to_ms_moment(None) is None
+    assert _to_ms_moment("") is None
 
 FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "sample_order.json")
 
@@ -39,16 +53,11 @@ def make_config():
     cfg.MS_ATTR_TOTAL_TO_PAY_ID = "attr-total"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
     cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID = "ce-del-sd"
-    cfg.MS_CUSTOMENTITY_DELIVERY_TYPE_ID = "ce-del-type"
     cfg.MS_CUSTOMENTITY_PAYMENT_TYPE_ID = "ce-pay-type"
     cfg.MS_PAYMENT_TYPE_PREPAID_ID = "pt-prepaid"
     cfg.MS_PAYMENT_TYPE_NONCASH_ID = "pt-noncash"
     cfg.MS_DELIVERY_SD_CDEK_ID = "sd-cdek"
     cfg.MS_DELIVERY_SD_YANDEX_ID = "sd-yandex"
-    cfg.MS_DELIVERY_SD_PICKUP_ID = "sd-pickup"
-    cfg.MS_DELIVERY_TYPE_PVZ_ID = "dt-pvz"
-    cfg.MS_DELIVERY_TYPE_POSTAMAT_ID = "dt-postamat"
-    cfg.MS_DELIVERY_TYPE_COURIER_ID = "dt-courier"
     return cfg
 
 
@@ -72,7 +81,6 @@ def make_processor(find_existing=None, cp_meta=None, positions=None, ms_post_res
         "opened": [],
         "services": [],
     }
-    pm.build_positions.return_value = default_positions
     pm.build_positions_from_normalized.return_value = default_positions
 
     return OrderProcessor(config, ms, cp, pm), ms, cp, pm
@@ -167,7 +175,7 @@ def test_only_opened_creates_one_order(sample_order):
 
 def test_mixed_order_number_suffix(sample_order):
     """Второй заказ (из видеообзора) получает суффикс _1 в номере."""
-    from woo_moysklad.order_processor import _TEST_ORDER_SUFFIX
+    from woo_moysklad.core.order_processor import _TEST_ORDER_SUFFIX
 
     fake_positions = {
         "regular": [{"quantity": 1, "price": 100000, "assortment": {"meta": {"type": "product"}}}],

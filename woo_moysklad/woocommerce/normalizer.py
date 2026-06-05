@@ -1,17 +1,17 @@
 # Нормализатор WooCommerce: order_data → NormalizedOrder
 
-from .field_mappers import (
+from woo_moysklad.core.field_mappers import (
     build_shipment_address,
     extract_courier_comment,
     extract_promo_code,
     extract_pvz_code,
-    is_card_payment,
+    is_manual_prepayment,
     map_delivery_sd,
     map_delivery_type,
     map_payment_type,
 )
-from .logger import get_logger
-from .normalized_order import (
+from woo_moysklad.logger import get_logger
+from woo_moysklad.core.normalized_order import (
     NormalizedCustomer,
     NormalizedDeliveryService,
     NormalizedLineItem,
@@ -36,7 +36,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
     payment_title = order_data.get("payment_method_title", "")
     shipping_lines = order_data.get("shipping_lines", [])
     method_title = shipping_lines[0].get("method_title", "") if shipping_lines else ""
-    card_payment = is_card_payment(payment_title)
+    manual_prepayment = is_manual_prepayment(payment_title)
 
     # Клиент
     customer = NormalizedCustomer(
@@ -55,11 +55,15 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
             quantity=int(item.get("quantity", 1)),
         ))
 
-    # Услуги доставки
+    # Услуги доставки: обнуляем цену только при ручной предоплате (на карту /
+    # банковский перевод) И доставке СДЭК — это промо «бесплатная доставка».
+    # Остальные услуги — реальная стоимость.
     delivery_services = []
     for sl in shipping_lines:
         name = sl.get("method_title", "")
-        if card_payment:
+        lower_name = name.lower()
+        is_cdek = "cdek" in lower_name or "сдэк" in lower_name
+        if manual_prepayment and is_cdek:
             price_cents = 0
         else:
             price_cents = round(float(sl.get("total", 0)) * 100)
@@ -79,7 +83,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
 
     # Состояние оплаты
     is_cod = "при получении" in payment_title.lower()
-    is_paid = order_data.get("status") == "processing" and not is_cod and not card_payment
+    is_paid = order_data.get("status") == "processing" and not is_cod and not manual_prepayment
 
     order_id = str(order_data["id"])
 
