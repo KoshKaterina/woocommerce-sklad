@@ -1,12 +1,16 @@
 """Скрипт для ручного запуска обработки заказа из WooCommerce."""
 
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from woo_moysklad.config import load_config
 from woo_moysklad.ms_client import MoySkladClient
-from woo_moysklad.woo_client import WooCommerceClient
-from woo_moysklad.counterparty_handler import CounterpartyHandler
-from woo_moysklad.product_matcher import ProductMatcher
-from woo_moysklad.order_processor import OrderProcessor
+from woo_moysklad.woocommerce.client import WooCommerceClient
+from woo_moysklad.core.counterparty_handler import CounterpartyHandler
+from woo_moysklad.core.product_matcher import ProductMatcher
+from woo_moysklad.core.order_processor import OrderProcessor
 
 
 def main(order_id: int):

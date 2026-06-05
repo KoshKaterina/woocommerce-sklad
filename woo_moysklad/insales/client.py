@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from .logger import get_logger
+from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
 
@@ -50,8 +50,16 @@ class InSalesClient:
         return resp.json()
 
     def get_order(self, order_id: int) -> dict:
-        """Получить заказ по ID."""
+        """Получить заказ по внутреннему ID (не number!)."""
         return self._request(f"orders/{order_id}")
+
+    def find_order_by_number(self, number: int, per_page: int = 100) -> dict | None:
+        """Найти заказ по отображаемому номеру (`number`) среди последних `per_page` заказов."""
+        orders = self._request("orders", {"per_page": per_page})
+        for o in orders:
+            if o.get("number") == number:
+                return o
+        return None
 
     def get_orders(self, updated_since: str | None = None,
                    from_id: int | None = None,

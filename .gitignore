@@ -1,8 +1,33 @@
+# Python
 __pycache__/
 *.py[cod]
+
+# Virtualenvs
 venv/
+.venv/
+
+# Secrets & config
 .env
+
+# Test / build caches
 .pytest_cache/
+
+# Logs
 *.log
+
+# OS
+.DS_Store
+
+# Runtime state (uCoz last-processed id, etc.)
+data/
+
+# Editor / tooling
 .claude/
 .dockerignore
+
+# Intermediate data artifacts (mapping drafts, API dumps)
+woo_moysklad/_*.json
+woo_moysklad/_*.csv
+
+# .env backups (contain secrets)
+.env.bak*

@@ -3,9 +3,17 @@
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 
 import structlog
+
+_MSK_TZ = timezone(timedelta(hours=3))
+
+
+def _add_msk_timestamp(logger, method_name, event_dict):
+    event_dict["timestamp"] = datetime.now(_MSK_TZ).isoformat(timespec="seconds")
+    return event_dict
 
 
 def setup_logging(log_level: str = "INFO", log_file: str = "woo_moysklad.log"):
@@ -37,7 +45,7 @@ def setup_logging(log_level: str = "INFO", log_file: str = "woo_moysklad.log"):
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
+            _add_msk_timestamp,
             structlog.dev.ConsoleRenderer() if sys.stdout.isatty() else structlog.processors.JSONRenderer(ensure_ascii=False),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),

@@ -2,7 +2,7 @@
 
 import re
 
-from .logger import get_logger
+from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
 
@@ -97,63 +97,6 @@ class ProductMatcher:
         except Exception as e:
             log.error("Ошибка при работе с услугой", name=name, error=str(e))
             return None
-
-    def build_positions(self, line_items: list, shipping_lines: list,
-                        is_card_payment: bool) -> dict[str, list[dict]]:
-        """Собрать позиции заказа, разделённые по категориям.
-
-        Возвращает {"regular": [...], "opened": [...], "services": [...]}.
-        regular — обычные товары, opened — товары из видеообзора, services — услуги.
-        """
-        regular = []
-        opened = []
-        services = []
-
-        # Товары
-        for item in line_items:
-            sku = item.get("sku", "")
-            product_name = item.get("name", "")
-            product_meta, is_opened = self.find_product(sku, product_name)
-            if product_meta is None:
-                continue
-
-            price = int(float(item.get("price", 0)) * 100)  # Копейки
-            quantity = int(item.get("quantity", 1))
-
-            position = {
-                "quantity": quantity,
-                "price": price,
-                "discount": 0,
-                "vat": 0,
-                "assortment": product_meta,
-            }
-
-            if is_opened:
-                opened.append(position)
-            else:
-                regular.append(position)
-
-        # Услуги доставки
-        for sl in shipping_lines:
-            method_title = sl.get("method_title", "")
-            service_meta = self.find_or_create_service(method_title)
-            if service_meta is None:
-                continue
-
-            if is_card_payment:
-                price = 0
-            else:
-                price = int(float(sl.get("total", 0)) * 100)  # Копейки
-
-            services.append({
-                "quantity": 1,
-                "price": price,
-                "discount": 0,
-                "vat": 0,
-                "assortment": service_meta,
-            })
-
-        return {"regular": regular, "opened": opened, "services": services}
 
     def build_positions_from_normalized(self, line_items, delivery_services) -> dict[str, list[dict]]:
         """Собрать позиции заказа из нормализованных данных.

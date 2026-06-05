@@ -43,7 +43,7 @@ class NormalizedOrder:
     # Замапленные атрибуты (None = не определён / пропустить)
     payment_title: str = ""
     payment_type_key: str | None = None      # "prepaid" / "noncash" / None
-    delivery_sd_key: str | None = None       # "cdek" / "yandex" / "pickup" / None
+    delivery_sd_key: str | None = None       # "cdek" / "yandex" / None
     delivery_type_key: str | None = None     # "pvz" / "postamat" / "courier" / None
     pvz_code: str | None = None
     shipment_address: str | None = None
@@ -54,6 +54,7 @@ class NormalizedOrder:
     organization_id: str | None = None
     state_id: str | None = None
     project_id: str | None = None
+    sales_channel_id: str | None = None
 
     # Состояние оплаты
     is_paid: bool = False

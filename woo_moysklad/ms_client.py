@@ -5,8 +5,8 @@ import time
 
 import requests
 
-from .exceptions import MoySkladAPIError
-from .logger import get_logger
+from woo_moysklad.exceptions import MoySkladAPIError
+from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
 
