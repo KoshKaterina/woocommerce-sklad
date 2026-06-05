@@ -1,6 +1,16 @@
 # Документация интеграции WooCommerce → Мой Склад
 **Версия:** 2.0 (на основе реального заказа WC #15674)
 
+> ⚠️ **ИСТОРИЧЕСКИЙ ДОКУМЕНТ.** Описывает архитектуру **до** InSales-рефакторинга (WC-only).
+> Часть описанного API **удалена или заменена**, в частности:
+> - `product_matcher.build_positions(line_items, shipping_lines, is_card_payment)` → заменён на `build_positions_from_normalized(line_items, delivery_services)`
+> - `map_delivery_sd` больше не возвращает `"pickup"` для самовывоза из офиса (возвращает `None`), `MS_DELIVERY_SD_PICKUP_ID` удалён из конфига
+> - `Reconciliation(config, woo_client, ms_client, order_processor)` → `Reconciliation(config, ms_client, adapters)` с `SourceAdapter`
+> - `OrderProcessor.process_order` теперь внутри вызывает `normalize_wc_order` → `process_normalized_order`
+>
+> **Для актуальной архитектуры смотри `README.md`** (InSales + WC через `NormalizedOrder` / `SourceAdapter`) и состояние задач в `TODO.md` / `KNOWN_ISSUES.md`.
+> Этот документ оставлен для понимания решений, принятых на этапе WC-only, и расшифровки маппингов полей WC (раздел 2.1, 3.x, приложение с заказом #15674 — всё ещё актуально в части WC REST API).
+
 ---
 
 ## 1. Общее описание
