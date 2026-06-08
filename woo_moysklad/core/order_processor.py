@@ -140,6 +140,10 @@ class OrderProcessor:
                     "assortment": margin_meta,
                 })
 
+        # Упаковка (пакеты/коробка) как услуги с ценой 0 — все каналы, кроме Tangemshop и Маркетплейс
+        if not self._is_packaging_excluded_channel(order):
+            self._append_packaging_services(services, pos.get("item_volumes", []), order)
+
         has_regular = bool(regular)
         has_opened = bool(opened)
 
@@ -192,6 +196,41 @@ class OrderProcessor:
     # ──────────────────────────────────────────────
     # Внутренние методы
     # ──────────────────────────────────────────────
+
+    def _is_packaging_excluded_channel(self, order: NormalizedOrder) -> bool:
+        """Каналы без упаковки: Tangemshop (InSales) и Маркетплейс."""
+        channel = order.sales_channel_id or self.config.MS_SALES_CHANNEL_ID
+        excluded = {
+            getattr(self.config, "MS_SALES_CHANNEL_INSALES_ID", "") or None,
+            getattr(self.config, "MS_SALES_CHANNEL_MARKETPLACE_ID", "") or None,
+        }
+        return channel in excluded
+
+    def _append_packaging_services(self, services: list, item_volumes: list,
+                                   order: NormalizedOrder) -> None:
+        """Добавить услуги-упаковку (цена 0) по суммарному объёму товаров заказа."""
+        from woo_moysklad.core.packaging import compute_packaging
+
+        packaging = compute_packaging(item_volumes)
+        if not packaging:
+            if item_volumes and sum(v * q for v, q in item_volumes) <= 0:
+                log.warning("Упаковка: объём товаров не задан в МС — упаковку не подбираем",
+                            order_id=order.order_id)
+            return
+
+        for name, count in packaging:
+            meta = self.pm.find_or_create_service(name)
+            if not meta:
+                continue
+            services.append({
+                "quantity": count,
+                "price": 0,
+                "discount": 0,
+                "vat": 0,
+                "assortment": meta,
+            })
+        log.info("Упаковка подобрана", order_id=order.order_id,
+                 packaging=[(n, c) for n, c in packaging])
 
     def _find_existing_order(self, order_number: str) -> dict | None:
         """Поиск существующего заказа в МС по доп. полю 'Номер заказа на сайте'."""

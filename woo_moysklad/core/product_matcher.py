@@ -7,12 +7,20 @@ from woo_moysklad.logger import get_logger
 log = get_logger(__name__)
 
 
+def _to_volume(value) -> float:
+    """Объём товара МС → float (м³). None/мусор → 0.0."""
+    try:
+        return float(value) if value is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class ProductMatcher:
     """Сопоставление товаров WC → МС по артикулу (SKU) и управление услугами доставки."""
 
     def __init__(self, ms_client):
         self.ms_client = ms_client
-        self._product_cache: dict[str, dict] = {}  # sku → meta
+        self._product_cache: dict[str, dict] = {}  # sku → {"meta": ..., "volume": float}
         self._service_cache: dict[str, dict] = {}   # name → meta
 
     @staticmethod
@@ -27,15 +35,16 @@ class ProductMatcher:
             return clean, True
         return sku, False
 
-    def find_product(self, sku: str, product_name: str = "") -> tuple[dict | None, bool]:
+    def find_product(self, sku: str, product_name: str = "") -> tuple[dict | None, bool, float]:
         """Найти товар в МС по артикулу (article), fallback на externalCode.
 
-        Возвращает (meta-ссылку или None, is_opened).
+        Возвращает (meta-ссылку или None, is_opened, volume_m3).
         is_opened=True для товаров "из видеообзора" → склад "Вскрытые".
+        volume_m3 — нативное поле `volume` товара МС (для подбора упаковки), 0.0 если не задан.
         """
         if not sku:
             log.error("Пустой артикул товара")
-            return None, False
+            return None, False, 0.0
 
         clean_sku, is_opened = self._parse_video_review_sku(sku, product_name)
 
@@ -44,26 +53,21 @@ class ProductMatcher:
 
         # Проверяем кэш
         if clean_sku in self._product_cache:
-            return self._product_cache[clean_sku], is_opened
+            cached = self._product_cache[clean_sku]
+            return cached["meta"], is_opened, cached["volume"]
 
-        # Поиск по article
-        rows = self.ms_client.find_by_filter("product", f"article={clean_sku}")
-        if rows:
-            meta = {"meta": rows[0]["meta"]}
-            self._product_cache[clean_sku] = meta
-            log.info("Товар найден по article", sku=clean_sku, id=rows[0]["id"])
-            return meta, is_opened
-
-        # Fallback: поиск по externalCode
-        rows = self.ms_client.find_by_filter("product", f"externalCode={clean_sku}")
-        if rows:
-            meta = {"meta": rows[0]["meta"]}
-            self._product_cache[clean_sku] = meta
-            log.info("Товар найден по externalCode", sku=clean_sku, id=rows[0]["id"])
-            return meta, is_opened
+        # Поиск по article, fallback на externalCode
+        for field, value in (("article", clean_sku), ("externalCode", clean_sku)):
+            rows = self.ms_client.find_by_filter("product", f"{field}={value}")
+            if rows:
+                meta = {"meta": rows[0]["meta"]}
+                volume = _to_volume(rows[0].get("volume"))
+                self._product_cache[clean_sku] = {"meta": meta, "volume": volume}
+                log.info("Товар найден", sku=clean_sku, by=field, id=rows[0]["id"], volume=volume)
+                return meta, is_opened, volume
 
         log.error("Товар не найден в МС", sku=clean_sku, original_sku=sku)
-        return None, False
+        return None, False, 0.0
 
     def find_or_create_service(self, name: str) -> dict | None:
         """Найти или создать услугу в МС по имени.
@@ -98,18 +102,21 @@ class ProductMatcher:
             log.error("Ошибка при работе с услугой", name=name, error=str(e))
             return None
 
-    def build_positions_from_normalized(self, line_items, delivery_services) -> dict[str, list[dict]]:
+    def build_positions_from_normalized(self, line_items, delivery_services) -> dict:
         """Собрать позиции заказа из нормализованных данных.
 
-        Возвращает {"regular": [...], "opened": [], "services": [...]}.
+        Возвращает {"regular": [...], "opened": [], "services": [...],
+        "item_volumes": [(volume_m3, quantity), ...]}.
+        item_volumes — объёмы найденных товаров (для подбора упаковки).
         Цена и количество уже готовы в NormalizedLineItem/NormalizedDeliveryService.
         """
         regular = []
         opened = []
         services = []
+        item_volumes = []
 
         for item in line_items:
-            product_meta, is_opened = self.find_product(item.sku, item.title)
+            product_meta, is_opened, volume = self.find_product(item.sku, item.title)
             if product_meta is None:
                 continue
 
@@ -120,6 +127,7 @@ class ProductMatcher:
                 "vat": 0,
                 "assortment": product_meta,
             }
+            item_volumes.append((volume, item.quantity))
 
             if is_opened:
                 opened.append(position)
@@ -139,4 +147,5 @@ class ProductMatcher:
                 "assortment": service_meta,
             })
 
-        return {"regular": regular, "opened": opened, "services": services}
+        return {"regular": regular, "opened": opened, "services": services,
+                "item_volumes": item_volumes}

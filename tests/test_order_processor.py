@@ -154,6 +154,49 @@ def test_mixed_order_creates_two_orders(sample_order):
     assert len(body2["positions"]) == 1  # 1 opened, no services
 
 
+def test_packaging_service_added_by_volume(sample_order):
+    """Упаковка добавляется как услуга-позиция по объёму товаров (канал ≠ Tangemshop)."""
+    from woo_moysklad.core.packaging import SMALL_BAG
+
+    fake_positions = {
+        "regular": [{"quantity": 1, "price": 100000, "assortment": {"meta": {"type": "product"}}}],
+        "opened": [],
+        "services": [],
+        "item_volumes": [(0.0003, 1)],  # < 0.00065 → маленький пакет
+    }
+    processor, ms, cp, pm = make_processor(positions=fake_positions)
+    pm.find_or_create_service.return_value = {"meta": {"type": "service", "href": "pkg"}}
+
+    processor.process_order(sample_order)
+
+    pm.find_or_create_service.assert_called_once_with(SMALL_BAG)
+    positions = ms.post.call_args[0][1]["positions"]
+    pkg = [p for p in positions if p["assortment"]["meta"].get("href") == "pkg"]
+    assert len(pkg) == 1
+    assert pkg[0]["price"] == 0 and pkg[0]["quantity"] == 1
+
+
+def test_packaging_excluded_channels():
+    """Упаковку не подбираем для Tangemshop и Маркетплейс; для Магазина — да."""
+    from woo_moysklad.core.normalized_order import NormalizedCustomer, NormalizedOrder
+
+    processor, ms, cp, pm = make_processor()
+    processor.config.MS_SALES_CHANNEL_INSALES_ID = "ts-uuid"
+    processor.config.MS_SALES_CHANNEL_MARKETPLACE_ID = "mp-uuid"
+    processor.config.MS_SALES_CHANNEL_ID = "shop-uuid"
+
+    def order(channel=None):
+        return NormalizedOrder(
+            source="x", order_id="1", order_number="1",
+            customer=NormalizedCustomer(full_name="Тест", phone="79990000000"),
+            sales_channel_id=channel,
+        )
+
+    assert processor._is_packaging_excluded_channel(order("ts-uuid")) is True   # Tangemshop
+    assert processor._is_packaging_excluded_channel(order("mp-uuid")) is True   # Маркетплейс
+    assert processor._is_packaging_excluded_channel(order(None)) is False       # WC → Магазин
+
+
 def test_only_opened_creates_one_order(sample_order):
     """Только товары из видеообзора + услуги → 1 заказ, склад вскрытые."""
     fake_positions = {

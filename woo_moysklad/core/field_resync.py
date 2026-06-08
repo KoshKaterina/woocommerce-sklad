@@ -19,6 +19,8 @@
   - если изменён только контрагент — пересчёт даёт те же значения → записи нет.
 """
 from woo_moysklad.core.field_mappers import build_attribute
+from woo_moysklad.core.packaging import PACKAGING_SERVICE_NAMES, compute_packaging
+from woo_moysklad.core.product_matcher import ProductMatcher
 from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
@@ -100,6 +102,7 @@ class FieldResync:
     def __init__(self, config, ms_client):
         self.config = config
         self.ms = ms_client
+        self.pm = ProductMatcher(ms_client)  # для find_or_create_service (упаковка)
 
     # ── чтение ──────────────────────────────────────────────
     def _fetch_orders(self, window_start, window_end) -> list:
@@ -125,27 +128,75 @@ class FieldResync:
         for p in resp.get("rows", []):
             assortment = p.get("assortment") or {}
             a_type = assortment.get("meta", {}).get("type", "")
+            try:
+                volume = float(assortment.get("volume") or 0)
+            except (TypeError, ValueError):
+                volume = 0.0
             out.append({
                 "id": p["id"],
                 "type": "service" if a_type == "service" else "goods",
                 "name": assortment.get("name", ""),
                 "price": p.get("price", 0),
                 "quantity": p.get("quantity", 1),
+                "volume": volume,
             })
         return out
+
+    def _channel_id(self, order: dict) -> str:
+        href = (order.get("salesChannel") or {}).get("meta", {}).get("href", "")
+        return href.rstrip("/").split("/")[-1]
 
     def _is_marketplace(self, order: dict) -> bool:
         mp_id = self.config.MS_SALES_CHANNEL_MARKETPLACE_ID
         if not mp_id:
             return False
-        href = (order.get("salesChannel") or {}).get("meta", {}).get("href", "")
-        return href.rstrip("/").split("/")[-1] == mp_id
+        return self._channel_id(order) == mp_id
+
+    def _is_tangemshop(self, order: dict) -> bool:
+        ts_id = getattr(self.config, "MS_SALES_CHANNEL_INSALES_ID", "")
+        if not ts_id:
+            return False
+        return self._channel_id(order) == ts_id
 
     def _attr_value(self, order: dict, attr_id: str):
         for a in order.get("attributes", []):
             if a.get("id") == attr_id:
                 return a.get("value")
         return None  # поле отсутствует
+
+    def _compute_packaging_changes(self, order: dict, positions: list) -> tuple[dict, list, list]:
+        """Сверить упаковку заказа с желаемой по объёму товаров.
+
+        Возвращает (plan, delete_ids, add_specs):
+          plan       — {имя: {old, new}} для отчёта/dry-run,
+          delete_ids — id позиций-упаковки на удаление,
+          add_specs  — [(имя_услуги, количество)] на добавление.
+        Tangemshop пропускаем (упаковку не ведём).
+        """
+        if self._is_tangemshop(order):
+            return {}, [], []
+
+        goods = [(p["volume"], p["quantity"]) for p in positions if p["type"] == "goods"]
+        desired = dict(compute_packaging(goods))  # имя → количество
+
+        current: dict[str, list] = {}  # имя → [(id, quantity), ...]
+        for p in positions:
+            if p["type"] == "service" and p["name"] in PACKAGING_SERVICE_NAMES:
+                current.setdefault(p["name"], []).append((p["id"], p["quantity"]))
+
+        plan, delete_ids, add_specs = {}, [], []
+        for name in set(desired) | set(current):
+            want = desired.get(name, 0)
+            cur_list = current.get(name, [])
+            cur_total = sum(q for _, q in cur_list)
+            # уже корректно (ровно одна позиция нужного количества) → пропускаем
+            if want == cur_total and len(cur_list) <= 1:
+                continue
+            delete_ids.extend(pid for pid, _ in cur_list)
+            if want > 0:
+                add_specs.append((name, want))
+            plan[name] = {"old": cur_total, "new": want}
+        return plan, delete_ids, add_specs
 
     # ── один заказ ──────────────────────────────────────────
     def resync_order(self, order: dict, *, dry_run: bool = False) -> dict | None:
@@ -202,15 +253,30 @@ class FieldResync:
         if zero_ids:
             plan["Обнулить СДЭК-доставку"] = {"positions": zero_ids}
 
-        if not attr_patch and not zero_ids:
+        # --- упаковка: подстройка под текущие товары ---
+        pkg_plan, pkg_deletes, pkg_adds = self._compute_packaging_changes(order, positions)
+        if pkg_plan:
+            plan["Упаковка"] = pkg_plan
+
+        if not attr_patch and not zero_ids and not pkg_deletes and not pkg_adds:
             return None
 
         if dry_run:
             return {"order": name, "id": order_id, "plan": plan}
 
-        # --- запись: сначала позиции (только цена), потом атрибуты ---
+        # --- запись: позиции (цена/упаковка), затем атрибуты ---
         for pos_id in zero_ids:
             self.ms.put(f"entity/customerorder/{order_id}/positions/{pos_id}", {"price": 0})
+        for pos_id in pkg_deletes:
+            self.ms.delete(f"entity/customerorder/{order_id}/positions/{pos_id}")
+        add_body = []
+        for svc_name, count in pkg_adds:
+            meta = self.pm.find_or_create_service(svc_name)
+            if meta:
+                add_body.append({"quantity": count, "price": 0, "discount": 0,
+                                 "vat": 0, "assortment": meta})
+        if add_body:
+            self.ms.post(f"entity/customerorder/{order_id}/positions", add_body)
         if attr_patch:
             self.ms.put(f"entity/customerorder/{order_id}", {"attributes": attr_patch})
         log.info("Resync: поля пересчитаны", order=name, fields=list(plan.keys()))

@@ -120,6 +120,10 @@ class MoySkladClient:
         """POST-запрос к API МС."""
         return self._request("POST", path, json_data=data)
 
+    def delete(self, path: str) -> dict:
+        """DELETE-запрос к API МС (204 → {})."""
+        return self._request("DELETE", path)
+
     def put(self, path: str, data: dict) -> dict:
         """PUT-запрос к API МС."""
         return self._request("PUT", path, json_data=data)

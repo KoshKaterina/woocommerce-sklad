@@ -180,3 +180,88 @@ def test_resync_counterparty_only_no_change():
     order = _order("При получении", 7600, 799, 8399, "elem-2")  # корректный COD
     assert rs.resync_order(order) is None
     assert ms.puts == []
+
+
+# --- упаковка в reverse-sync ---
+
+from woo_moysklad.core.packaging import BOX, SMALL_BAG  # noqa: E402
+
+
+class FakeMSpkg(FakeMS):
+    """FakeMS + post/delete для подстройки упаковки."""
+
+    def __init__(self, positions):
+        super().__init__(positions)
+        self.posts = []
+        self.deletes = []
+
+    def post(self, path, data):
+        self.posts.append((path, data))
+        return {}
+
+    def delete(self, path):
+        self.deletes.append(path)
+        return {}
+
+
+def _goods(volume, qty=1):
+    return {"id": "g1", "quantity": qty, "price": 100000,
+            "assortment": {"meta": {"type": "product"}, "name": "Tangem", "volume": volume}}
+
+
+def _pkg_pos(name, pid="pk1", qty=1):
+    return {"id": pid, "quantity": qty, "price": 0,
+            "assortment": {"meta": {"type": "service"}, "name": name}}
+
+
+def _stub_service(rs):
+    rs.pm.find_or_create_service = lambda n: {"meta": {"type": "service", "name": n}}
+
+
+def test_resync_packaging_added_when_missing():
+    # Товар с объёмом, упаковки нет → добавить маленький пакет
+    ms = FakeMSpkg([_goods(0.0003)])
+    rs = FieldResync(Cfg, ms)
+    _stub_service(rs)
+    order = _order("Оплата онлайн", 1000, 0, 0, "elem-1")  # поля уже корректны
+    res = rs.resync_order(order)
+    assert res is not None and "Упаковка" in res["plan"]
+    assert len(ms.posts) == 1
+    added = ms.posts[0][1][0]
+    assert added["assortment"]["meta"]["name"] == SMALL_BAG
+    assert added["price"] == 0
+
+
+def test_resync_packaging_idempotent():
+    # Упаковка уже корректна → ничего не пишем
+    ms = FakeMSpkg([_goods(0.0003), _pkg_pos(SMALL_BAG)])
+    rs = FieldResync(Cfg, ms)
+    _stub_service(rs)
+    order = _order("Оплата онлайн", 1000, 0, 0, "elem-1")
+    assert rs.resync_order(order) is None
+    assert ms.posts == [] and ms.deletes == []
+
+
+def test_resync_packaging_swapped_to_box():
+    # Объём вырос (один товар > 0.015) → удалить пакет, добавить коробку
+    ms = FakeMSpkg([_goods(0.02), _pkg_pos(SMALL_BAG, pid="old")])
+    rs = FieldResync(Cfg, ms)
+    _stub_service(rs)
+    order = _order("Оплата онлайн", 1000, 0, 0, "elem-1")
+    res = rs.resync_order(order)
+    assert res is not None
+    assert "entity/customerorder/o1/positions/old" in ms.deletes
+    assert ms.posts[0][1][0]["assortment"]["meta"]["name"] == BOX
+
+
+def test_resync_packaging_skipped_for_tangemshop():
+    # Канал Tangemshop → упаковку не трогаем
+    class CfgTS(Cfg):
+        MS_SALES_CHANNEL_INSALES_ID = "ts-1"
+
+    ms = FakeMSpkg([_goods(0.0003)])
+    rs = FieldResync(CfgTS, ms)
+    _stub_service(rs)
+    order = _order("Оплата онлайн", 1000, 0, 0, "elem-1", channel="ts-1")
+    assert rs.resync_order(order) is None
+    assert ms.posts == [] and ms.deletes == []
