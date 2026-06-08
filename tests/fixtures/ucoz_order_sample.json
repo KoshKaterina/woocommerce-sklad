@@ -1,0 +1,32 @@
+{
+  "order": {
+    "add_date": 1776394083,
+    "id": 391,
+    "order_hash": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "delivery_data": "{}",
+    "uid": 9999,
+    "inv_params": "payment_accepted#yandexkassa_payment_id=00000000-0000-0000-0000-000000000000#",
+    "user": "testuser",
+    "amount": "8990.00",
+    "id_tg": "111111111",
+    "delivery_id": 4,
+    "delivery_tax": "0.00",
+    "payment_id": 3,
+    "payment_topay": "  \u20bd 8990",
+    "field_phone": "79999999999",
+    "field_delivery_address": "\u041c\u043e\u0441\u043a\u0432\u0430, \u0422\u0435\u0441\u0442\u043e\u0432\u0430\u044f \u0443\u043b\u0438\u0446\u0430 1",
+    "field_full_name": "\u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u041a\u043b\u0438\u0435\u043d\u0442",
+    "field_email": "test@example.com",
+    "field_order_comment": "\u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439",
+    "discount_sum": "0.00"
+  },
+  "goods": [
+    {
+      "name": "Blockstream Jade Orange",
+      "goods_url": "https://sunscrypt.usite.pro/shop/134/desc/apparatnyj-koshelek-blockstream-jade-transparent-orange",
+      "goods_id": 134,
+      "price_raw": 8990,
+      "count": 1
+    }
+  ]
+}

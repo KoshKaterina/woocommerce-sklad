@@ -1,0 +1,51 @@
+{
+  "order": {
+    "id": 394,
+    "id_tg": "381302884",
+    "user": "koshkatarina",
+    "amount": "53460.00",
+    "delivery_data": "{}",
+    "uid": 1788,
+    "add_date": 1777463577,
+    "order_hash": "UqS7d%3BZHqxnxPHSKnE3kLY%3BJO9b5bdMFTVlUXOhJ",
+    "delivery_id": 1,
+    "delivery_tax": "0.00",
+    "payment_id": 6,
+    "payment_topay": "535 USDT ",
+    "field_phone": "89099371845",
+    "field_order_comment": "тест",
+    "field_email": "koshkatarina@site.com",
+    "field_full_name": "Katerina Koshenkova",
+    "discount_sum": "0.00"
+  },
+  "goods": [
+    {
+      "name": "Tangem Ring",
+      "goods_url": "https://sunscrypt.usite.pro/shop/220/desc/apparatnyj-koshelek-kolco-tangem-ring",
+      "goods_id": 220,
+      "price_raw": 14990,
+      "count": 1
+    },
+    {
+      "name": "Tangem 2.0 Hyperblue (3 карты)",
+      "goods_url": "https://sunscrypt.usite.pro/shop/275/desc/tangem-2-0-hyperblue-3-karty",
+      "goods_id": 275,
+      "price_raw": 8490,
+      "count": 1
+    },
+    {
+      "name": "Tangem Ring",
+      "goods_url": "https://sunscrypt.usite.pro/shop/220/desc/apparatnyj-koshelek-kolco-tangem-ring",
+      "goods_id": 220,
+      "price_raw": 14990,
+      "count": 1
+    },
+    {
+      "name": "Tangem Ring",
+      "goods_url": "https://sunscrypt.usite.pro/shop/220/desc/apparatnyj-koshelek-kolco-tangem-ring",
+      "goods_id": 220,
+      "price_raw": 14990,
+      "count": 1
+    }
+  ]
+}

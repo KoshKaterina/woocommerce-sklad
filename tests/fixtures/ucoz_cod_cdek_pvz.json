@@ -1,0 +1,38 @@
+{
+  "order": {
+    "id_tg": "381302884",
+    "user": "koshkatarina",
+    "amount": "30170.00",
+    "delivery_data": "{\"delivery_pn\":\"Москва, ул. Генерала Тюленева, 25А\",\"delivery_pi\":\"MSK2331\",\"delivery_ci\":\"44\",\"delivery_cn\":\"Москва\"}",
+    "id": 392,
+    "order_hash": "UqS7d%3BZHqxnxPHKKnE3kLY%3BJO9KgNaEFTWOaX1IJ",
+    "uid": 1788,
+    "add_date": 1777462495,
+    "delivery_id": 3,
+    "delivery_tax": "195.00",
+    "payment_id": 1,
+    "payment_topay": " ₽30365",
+    "field_phone": "89099371845",
+    "field_cdek_info": "г.: Москва, ул. Генерала Тюленева, 25А\n\nMSK2331\n\nРежим работы: Пн-Пт 10:00-21:00, Сб-Вс 10:00-20:00",
+    "field_order_comment": "тест",
+    "field_full_name": "Katerina Koshenkova",
+    "field_email": "koshkatarina@site.com",
+    "discount_sum": "0.00"
+  },
+  "goods": [
+    {
+      "name": "Keystone 3 Pro",
+      "goods_url": "https://sunscrypt.usite.pro/shop/7/desc/apparatnyj-koshelek-keystone-3-pro",
+      "goods_id": 7,
+      "price_raw": 14990,
+      "count": 1
+    },
+    {
+      "name": "Tangem 2.0 WHITE (3 Карты)",
+      "goods_url": "https://sunscrypt.usite.pro/shop/109/desc/apparatnyj-kosheljok-tangem-2-0-white-limited-edition-3-karty",
+      "goods_id": 109,
+      "price_raw": 7590,
+      "count": 2
+    }
+  ]
+}

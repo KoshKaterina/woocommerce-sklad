@@ -1,0 +1,38 @@
+{
+  "order": {
+    "user": "koshkatarina",
+    "add_date": 1777463044,
+    "id_tg": "381302884",
+    "id": 393,
+    "delivery_data": "{}",
+    "amount": "21960.00",
+    "order_hash": "UqS7d%3BZHqxnxPHbKnE3kLY%3BJO9bkbtUFT%5E%21kIt3J",
+    "uid": 1788,
+    "delivery_id": 4,
+    "delivery_tax": "0.00",
+    "payment_id": 7,
+    "payment_topay": " ₽21960",
+    "field_delivery_address": "бутлерова 17",
+    "field_order_comment": "тест",
+    "field_email": "koshkatarina@site.com",
+    "field_phone": "89099371845",
+    "field_full_name": "Katerina Koshenkova",
+    "discount_sum": "0.00"
+  },
+  "goods": [
+    {
+      "name": "YubiKey 5C NFC",
+      "goods_url": "https://sunscrypt.usite.pro/shop/173/desc/apparatnyj-kljuch-autentifikacii-yubikey-5c-nfc",
+      "goods_id": 173,
+      "price_raw": 6990,
+      "count": 1
+    },
+    {
+      "name": "Keystone Tablet",
+      "goods_url": "https://sunscrypt.usite.pro/shop/8/desc/ustrojstvo-rezervnogo-kopirovanija-frazy-vosstanovlenija-keystone-tablet",
+      "goods_id": 8,
+      "price_raw": 4990,
+      "count": 3
+    }
+  ]
+}
