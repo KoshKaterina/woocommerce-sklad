@@ -8,7 +8,7 @@
 > - `Reconciliation(config, woo_client, ms_client, order_processor)` → `Reconciliation(config, ms_client, adapters)` с `SourceAdapter`
 > - `OrderProcessor.process_order` теперь внутри вызывает `normalize_wc_order` → `process_normalized_order`
 >
-> **Для актуальной архитектуры смотри `README.md`** (InSales + WC через `NormalizedOrder` / `SourceAdapter`) и состояние задач в `TODO.md` / `KNOWN_ISSUES.md`.
+> **Для актуальной архитектуры смотри `CLAUDE.md`** (краткий ориентир) и `README.md`. С 2026-06 также: реорг в фича-пакеты (`core/woocommerce/insales/ucoz`), миграция доп.полей МС (Вид доставки→long, стоимости→double, новый справочник «Прием платежа»), reverse-sync. Состояние задач — `TODO.md` / `KNOWN_ISSUES.md`.
 > Этот документ оставлен для понимания решений, принятых на этапе WC-only, и расшифровки маппингов полей WC (раздел 2.1, 3.x, приложение с заказом #15674 — всё ещё актуально в части WC REST API).
 
 ---
