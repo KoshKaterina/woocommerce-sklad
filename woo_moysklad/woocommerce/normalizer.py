@@ -1,7 +1,9 @@
 # Нормализатор WooCommerce: order_data → NormalizedOrder
 
+from woo_moysklad.core.address_parser import parse_wc_address
 from woo_moysklad.core.field_mappers import (
     build_shipment_address,
+    detect_delivery_type,
     extract_courier_comment,
     extract_promo_code,
     extract_pvz_code,
@@ -78,6 +80,11 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
     delivery_type_key = _safe("map_delivery_type", lambda: map_delivery_type(method_title))
     pvz_code = _safe("extract_pvz_code", lambda: extract_pvz_code(order_data))
     shipment_address = _safe("build_shipment_address", lambda: build_shipment_address(order_data))
+    shipment_address_parts = _safe(
+        "parse_wc_address",
+        lambda: parse_wc_address(order_data.get("shipping", {}),
+                                 detect_delivery_type(method_title)),
+    )
     description = _safe("extract_courier_comment", lambda: extract_courier_comment(order_data))
     promo_code = _safe("extract_promo_code", lambda: extract_promo_code(order_data))
 
@@ -100,6 +107,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
         delivery_type_key=delivery_type_key,
         pvz_code=pvz_code,
         shipment_address=shipment_address,
+        shipment_address_parts=shipment_address_parts,
         description=description,
         promo_code=promo_code,
         is_paid=is_paid,

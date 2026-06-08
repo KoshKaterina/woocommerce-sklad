@@ -34,6 +34,9 @@ class MoySkladClient:
         # Потокобезопасность: requests.Session не thread-safe
         self._lock = threading.Lock()
 
+        # Кэш meta-ссылок стран справочника МС ({name.lower(): meta|None})
+        self._country_meta_cache: dict[str, dict | None] = {}
+
     def _rate_limit(self):
         """Ожидание для соблюдения лимита запросов."""
         now = time.monotonic()
@@ -142,6 +145,30 @@ class MoySkladClient:
                 "mediaType": "application/json",
             }
         }
+
+    def find_country_meta(self, name: str) -> dict | None:
+        """meta-ссылка на страну справочника МС по названию (с кэшем).
+
+        Страну НЕ хардкодим (бывают зарубежные заказы). Не нашли — None,
+        тогда country в shipmentAddressFull просто не пишется.
+        """
+        if not name:
+            return None
+        key = name.strip().lower()
+        if key in self._country_meta_cache:
+            return self._country_meta_cache[key]
+
+        meta = None
+        try:
+            resp = self.get("entity/country", params={"filter": f"name={name}"})
+            rows = resp.get("rows", [])
+            if rows:
+                meta = {"meta": rows[0]["meta"]}
+        except Exception:
+            meta = None  # справочник недоступен — пишем адрес без страны
+
+        self._country_meta_cache[key] = meta
+        return meta
 
     def make_state_meta(self, entity_type: str, state_uuid: str) -> dict:
         """Сформировать meta-ссылку на статус сущности МС.

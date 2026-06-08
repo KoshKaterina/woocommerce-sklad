@@ -20,11 +20,16 @@ def detect_delivery_type(method_title: str) -> str:
 
 
 def build_shipment_address(order_data: dict) -> str:
-    """Сформировать строку адреса доставки.
+    """Сформировать строку адреса доставки (человекочитаемый fallback).
 
-    pvz:     "Россия, " + shipping.address_2 + ", " + shipping.postcode
-    courier: "Россия, " + shipping.city + ", " + shipping.address_1 + ", " + shipping.postcode
+    pvz:     "<Страна>, " + shipping.address_2 + ", " + shipping.postcode
+    courier: "<Страна>, " + shipping.city + ", " + shipping.address_1 + ", " + shipping.postcode
+
+    Страна берётся по ISO-коду shipping.country (не хардкод — бывают KZ/BY/…),
+    с дефолтом «Россия», если код неизвестен/пуст.
     """
+    from woo_moysklad.core.address_parser import ISO_TO_COUNTRY_NAME
+
     shipping = order_data.get("shipping", {})
     shipping_lines = order_data.get("shipping_lines", [])
 
@@ -32,14 +37,16 @@ def build_shipment_address(order_data: dict) -> str:
     delivery_type = detect_delivery_type(method_title)
 
     postcode = shipping.get("postcode", "")
+    iso = (shipping.get("country") or "").upper()
+    country = ISO_TO_COUNTRY_NAME.get(iso, "Россия")
 
     if delivery_type == "pvz":
         address_2 = shipping.get("address_2", "")
-        parts = ["Россия", address_2, postcode]
+        parts = [country, address_2, postcode]
     else:
         city = shipping.get("city", "")
         address_1 = shipping.get("address_1", "")
-        parts = ["Россия", city, address_1, postcode]
+        parts = [country, city, address_1, postcode]
 
     # Убираем пустые части
     parts = [p for p in parts if p]

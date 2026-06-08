@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 
+from woo_moysklad.core.address_parser import ShipmentAddressParts
+
 
 @dataclass
 class NormalizedCustomer:
@@ -47,6 +49,7 @@ class NormalizedOrder:
     delivery_type_key: str | None = None     # "pvz" / "postamat" / "courier" / None
     pvz_code: str | None = None
     shipment_address: str | None = None
+    shipment_address_parts: "ShipmentAddressParts | None" = None  # для shipmentAddressFull
     description: str | None = None           # Комментарий покупателя
     promo_code: str | None = None
 

@@ -383,12 +383,46 @@ class OrderProcessor:
             body["description"] = order.description
         if order.shipment_address:
             body["shipmentAddress"] = order.shipment_address
+        address_full = self._build_shipment_address_full(order)
+        if address_full:
+            body["shipmentAddressFull"] = address_full
         if positions:
             body["positions"] = positions
         if attributes:
             body["attributes"] = attributes
 
         return body
+
+    def _build_shipment_address_full(self, order: NormalizedOrder) -> dict | None:
+        """Собрать нативный объект shipmentAddressFull из разобранных компонентов.
+
+        Строковые поля пишем напрямую; country — ссылка на справочник стран МС
+        (резолв по названию, не хардкод). region в MVP не пишем (справочник) —
+        он сохранён в addInfo. Пустые поля опускаем.
+        """
+        parts = order.shipment_address_parts
+        if parts is None or parts.is_empty():
+            return None
+
+        full: dict = {}
+        if parts.postal_code:
+            full["postalCode"] = parts.postal_code
+        if parts.city:
+            full["city"] = parts.city
+        if parts.street:
+            full["street"] = parts.street
+        if parts.house:
+            full["house"] = parts.house
+        if parts.apartment:
+            full["apartment"] = parts.apartment
+        if parts.add_info:
+            full["addInfo"] = parts.add_info
+        if parts.country_name:
+            country_meta = self.ms.find_country_meta(parts.country_name)
+            if country_meta:
+                full["country"] = country_meta
+
+        return full or None
 
     def _mark_paid_internal(self, *, base_order_number: str, suffixes: list[str],
                             date_paid: str | None,
