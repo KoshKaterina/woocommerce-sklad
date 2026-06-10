@@ -348,7 +348,9 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_COST_ID, _to_number(delivery_cost))
         self._add_attr(attributes, cfg.MS_ATTR_ESTIMATED_COST_ID, _to_number(estimated_cost))
         self._add_attr(attributes, cfg.MS_ATTR_TOTAL_TO_PAY_ID, _to_number(total_to_pay))
-        self._add_attr(attributes, cfg.MS_ATTR_COURIER_COMMENT_ID, order.description)
+        # «Комментарий курьеру» (доп.поле) НЕ заполняем из заказа — менеджер пишет
+        # его вручную при необходимости. Комментарий покупателя идёт только в
+        # нативное поле «Комментарий» (body["description"]). Поля не связаны.
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
 
         return attributes

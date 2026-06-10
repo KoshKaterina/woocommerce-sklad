@@ -61,6 +61,8 @@ class Config:
     MS_ATTR_ESTIMATED_COST_ID: str = "6197d336-5d04-11f1-0a80-0e1800256068"
     MS_ATTR_TOTAL_TO_PAY_ID: str = "80814b14-5d04-11f1-0a80-1d5a00242f6e"
     MS_ATTR_PAYMENT_TYPE_ID: str = "574102c9-60ac-11f1-0a80-0e5500051d84"
+    # «Комментарий курьеру» — НЕ заполняется интеграцией (менеджер пишет вручную).
+    # Комментарий покупателя идёт только в нативное поле «Комментарий» (description).
     MS_ATTR_COURIER_COMMENT_ID: str = "ed537fe2-5d04-11f1-0a80-0e18002576eb"
 
     # UUID элементов справочника "Прием платежа" — захардкожено
