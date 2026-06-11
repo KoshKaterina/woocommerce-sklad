@@ -113,7 +113,7 @@ python scripts/process_insales_order.py tests/fixtures/insales_sample_order.json
 python -m pytest tests/ -v
 ```
 
-Сейчас ~190 тестов (с uCoz; uCoz-тесты пока WIP, вне коммита):
+Сейчас ~163 теста (uCoz-тесты — WIP, вне коммита):
 - `test_field_mappers.py` — маппинг полей WC, банковский перевод (`is_manual_prepayment`)
 - `test_address_parser.py` — разбор адреса на компоненты (shipmentAddressFull) на реальных образцах
 - `test_wc_normalizer.py` — нормализатор WC (бесплатная СДЭК, is_paid)
@@ -192,7 +192,7 @@ docs/reference/                — справочные данные
 - 🟢 Обратная синхронизация полей из МС (TODO §4): реализована (`core/field_resync.py`), **включена по умолчанию** (`FIELD_RESYNC_ENABLED=true`; отключить — `=false` в `.env`). Пересчитывает зависимые доп.поля при ручных правках менеджера; исключает канал «Маркетплейс». Тест на 1 заказе: `python scripts/resync_order.py --order <N> --dry-run`
 - 🟡 uCoz-поток (TG-магазин): код готов, но **в WIP — не закоммичен** (пакет `woo_moysklad/ucoz/`). `main.py` импортирует его лениво (только при заданной `UCOZ_POLL_URL`)
 - ⚠️ Доп.поля МС обновлены (2026-06): «Вид доставки» теперь `long`, стоимости — `double`, «Прием платежа» — новый справочник. UUID новых полей/каналов и параметры InSales-источника (кроме API-ключа/пароля) **захардкожены** в `config.py` (`_HARDCODED_DEFAULTS`, не из `.env`). Прод-`.env` для InSales нужны только `INSALES_API_KEY` и `INSALES_PASSWORD`
-- 🟢 Разнесение адреса доставки (2026-06, WC): кроме плоского `shipmentAddress` заполняем нативный объект `shipmentAddressFull` (индекс/страна/город/улица/дом/квартира). Источник — стандартизованный плагином DaData `shipping.address_1`, парсится локально (`core/address_parser.py`). Страна резолвится в справочник МС по ISO-коду (`ms_client.find_country_meta`, не хардкод — бывают KZ/BY); регион (справочник) в MVP не пишем — сохраняем в «Другое» (addInfo). Проверено на тестовых заказах. InSales — отдельным шагом, пока не сделан
+- 🟢 Разнесение адреса доставки (2026-06, WC): кроме плоского `shipmentAddress` заполняем нативный объект `shipmentAddressFull` (индекс/страна/город/улица/дом/квартира). Источник — стандартизованный плагином DaData `shipping.address_1` (курьер) / `address_2` + мета CDEK (ПВЗ), парсится локально (`core/address_parser.py`). Код ПВЗ — из меты `_official_cdek_office_code` (первично). Страна резолвится в справочник МС по ISO-коду (`ms_client.find_country_meta`, не хардкод — бывают KZ/BY); регион не пишем, «Другое» (addInfo) не заполняем. Самовывоз из офиса — без адреса. Прод-заказы 8–11.06 вычищены ретро-скриптом (`scripts/fix_address_retro.py`). InSales — отдельным шагом, пока не сделан
 
 Актуальные задачи и ограничения: `TODO.md`, `KNOWN_ISSUES.md`.
 
