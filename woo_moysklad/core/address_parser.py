@@ -114,14 +114,16 @@ def _split_street_house_flat(address: str, city: str = "") -> tuple[str, str, st
         house = _strip_marker(tokens.pop(), _HOUSE_RE)
     elif tokens and _BARE_HOUSE_RE.match(tokens[-1]):
         # fallback: голый номер дома без маркера ("Фрунзе 5" → дом "5")
-        # только если в токене есть пробел (отделяем дом от названия улицы)
         last = tokens[-1]
-        if " " in last:
+        if last[0].isdigit() or " " not in last:
+            # токен начинается с цифры ("6 лит. А") или без пробела ("16с10") —
+            # это целиком дом
+            house = tokens.pop()
+        else:
+            # дом — последнее слово, остальное — улица ("Фрунзе 5")
             street_in_token, _, num = last.rpartition(" ")
             tokens[-1] = street_in_token
             house = num
-        else:
-            house = tokens.pop()
 
     street_tokens = [t for t in tokens if not _is_locality(t, city)]
     street = ", ".join(street_tokens)

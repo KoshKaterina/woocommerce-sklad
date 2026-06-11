@@ -131,6 +131,18 @@ def test_pvz_simple():
     assert "линия" in p.street
 
 
+def test_pvz_house_with_liter_and_pom():
+    # реальный адрес ПВЗ SPB217: дом с литерой + помещение
+    p = parse_wc_address(
+        _shipping(city="Санкт-Петербург",
+                  address_2="SPB217, Санкт-Петербург, ул. Фрунзе, 6 лит. А, пом. 29Н"),
+        "pvz",
+    )
+    assert p.street == "ул. Фрунзе"
+    assert p.house == "6 лит. А"
+    assert p.apartment == "29Н"
+
+
 def test_pvz_empty_address2_city_from_cdek_meta():
     # сбой чекаута (заказ 17130): address_2 пуст → город из меты CDEK
     p = parse_wc_address(_shipping(city="", address_2=""), "pvz",

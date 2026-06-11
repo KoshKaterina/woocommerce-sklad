@@ -140,6 +140,7 @@ def main(apply: bool) -> None:
                         parts = parse_wc_address(shipping, "pvz", cdek_city=cdek["city"])
                         cur = body.get("shipmentAddressFull") or _full_for_put(full)
                         cur.update({"street": parts.street, "house": parts.house,
+                                    "apartment": parts.apartment,
                                     "city": parts.city or cur.get("city", "")})
                         body["shipmentAddressFull"] = cur
                         body["shipmentAddress"] = f"Россия, {a2}"
