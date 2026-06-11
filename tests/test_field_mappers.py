@@ -8,6 +8,7 @@ import pytest
 from woo_moysklad.core.field_mappers import (
     build_attribute,
     build_shipment_address,
+    is_office_pickup,
     detect_delivery_type,
     extract_courier_comment,
     extract_promo_code,
@@ -85,6 +86,57 @@ def test_extract_pvz_code_various_formats():
     ]:
         order = {**base, "shipping": {"address_2": address_2}}
         assert extract_pvz_code(order) == expected, f"Failed for: {address_2!r}"
+
+
+def _cdek_pvz_order(address_2="", office_code="SPB217", city="Санкт-Петербург"):
+    """Заказ СДЭК-ПВЗ с метой official_cdek (как реальный 17130)."""
+    return {
+        "shipping": {"address_2": address_2, "city": city, "country": "RU",
+                     "postcode": "", "address_1": "", "state": ""},
+        "shipping_lines": [{
+            "method_title": "CDEK: Самовывоз, (2-3 дней)",
+            "method_id": "official_cdek",
+            "meta_data": [
+                {"key": "_official_cdek_office_code", "value": office_code},
+                {"key": "_official_cdek_city", "value": city},
+            ],
+        }],
+    }
+
+
+def test_extract_pvz_code_from_cdek_meta():
+    # мета первична: даже при пустом address_2 код есть (кейс заказа 17130)
+    assert extract_pvz_code(_cdek_pvz_order(address_2="")) == "SPB217"
+
+def test_extract_pvz_code_meta_beats_address2():
+    order = _cdek_pvz_order(address_2="XXX999, Город, ул. Другая, 1")
+    assert extract_pvz_code(order) == "SPB217"
+
+def test_build_shipment_address_pvz_empty_address2_uses_meta():
+    # сбой чекаута: address_2 пуст → код ПВЗ + город из меты CDEK
+    result = build_shipment_address(_cdek_pvz_order(address_2=""))
+    assert result == "Россия, SPB217, Санкт-Петербург"
+
+
+# --- самовывоз из офиса: адреса доставки нет ---
+
+def _office_order():
+    return {
+        "shipping": {"city": "Москва", "state": "МОСКВА", "country": "RU",
+                     "address_1": "", "address_2": "", "postcode": ""},
+        "shipping_lines": [{"method_title": "Самовывоз из офиса Sunscrypt",
+                            "method_id": "local_pickup", "meta_data": []}],
+    }
+
+def test_office_pickup_detected():
+    assert is_office_pickup(_office_order()) is True
+    assert is_office_pickup(_cdek_pvz_order()) is False
+
+def test_build_shipment_address_office_none():
+    assert build_shipment_address(_office_order()) is None
+
+def test_extract_pvz_code_office_none():
+    assert extract_pvz_code(_office_order()) is None
 
 
 # --- map_payment_type ---

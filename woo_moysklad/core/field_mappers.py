@@ -19,32 +19,67 @@ def detect_delivery_type(method_title: str) -> str:
     return "courier"
 
 
-def build_shipment_address(order_data: dict) -> str:
+def _first_shipping_line(order_data: dict) -> dict:
+    lines = order_data.get("shipping_lines", [])
+    return lines[0] if lines else {}
+
+
+def is_office_pickup(order_data: dict) -> bool:
+    """Самовывоз из офиса (local_pickup) — заказ без адреса доставки."""
+    line = _first_shipping_line(order_data)
+    if line.get("method_id") == "local_pickup":
+        return True
+    return "офиса" in (line.get("method_title") or "").lower()
+
+
+def extract_cdek_meta(order_data: dict) -> dict:
+    """Код ПВЗ и город из меты официального CDEK-плагина (shipping_lines[0].meta_data).
+
+    Плагин official_cdek пишет `_official_cdek_office_code` / `_official_cdek_city`
+    во ВСЕ свои заказы — это надёжнее, чем address_2, который чекаут иногда
+    не заполняет (сбой фронта, напр. заказ 17130).
+    """
+    meta = {m.get("key"): m.get("value")
+            for m in (_first_shipping_line(order_data).get("meta_data") or [])}
+    return {
+        "office_code": str(meta.get("_official_cdek_office_code") or "").strip(),
+        "city": str(meta.get("_official_cdek_city") or "").strip(),
+    }
+
+
+def build_shipment_address(order_data: dict) -> str | None:
     """Сформировать строку адреса доставки (человекочитаемый fallback).
 
     pvz:     "<Страна>, " + shipping.address_2 + ", " + shipping.postcode
+             (address_2 пуст — сбой чекаута → код ПВЗ + город из меты CDEK)
     courier: "<Страна>, " + shipping.city + ", " + shipping.address_1 + ", " + shipping.postcode
+    самовывоз из офиса: None — адреса доставки нет.
 
     Страна берётся по ISO-коду shipping.country (не хардкод — бывают KZ/BY/…),
     с дефолтом «Россия», если код неизвестен/пуст.
     """
     from woo_moysklad.core.address_parser import ISO_TO_COUNTRY_NAME
 
-    shipping = order_data.get("shipping", {})
-    shipping_lines = order_data.get("shipping_lines", [])
+    if is_office_pickup(order_data):
+        return None
 
-    method_title = shipping_lines[0].get("method_title", "") if shipping_lines else ""
+    shipping = order_data.get("shipping", {})
+    method_title = _first_shipping_line(order_data).get("method_title", "")
     delivery_type = detect_delivery_type(method_title)
 
     postcode = shipping.get("postcode", "")
+    city = shipping.get("city", "")
     iso = (shipping.get("country") or "").upper()
     country = ISO_TO_COUNTRY_NAME.get(iso, "Россия")
 
     if delivery_type == "pvz":
         address_2 = shipping.get("address_2", "")
-        parts = [country, address_2, postcode]
+        if address_2:
+            parts = [country, address_2, postcode]
+        else:
+            cdek = extract_cdek_meta(order_data)
+            parts = [country, cdek["office_code"], city or cdek["city"], postcode]
     else:
-        city = shipping.get("city", "")
         address_1 = shipping.get("address_1", "")
         parts = [country, city, address_1, postcode]
 
@@ -54,17 +89,23 @@ def build_shipment_address(order_data: dict) -> str:
 
 
 def extract_pvz_code(order_data: dict) -> str | None:
-    """Извлечь код ПВЗ из shipping.address_2 (только при типе pvz).
+    """Извлечь код ПВЗ (только при типе pvz).
 
-    Код ПВЗ — одна или более заглавных латинских букв + одна или более цифр.
+    Первичный источник — мета CDEK-плагина `_official_cdek_office_code`
+    (есть всегда, даже когда чекаут не заполнил address_2).
+    Fallback — regex по shipping.address_2: одна или более заглавных
+    латинских букв + одна или более цифр.
     "MSK2425, Москва, ул. Садовая-Кудринская, 20" → "MSK2425"
     "SBP892 какой-то текст" → "SBP892"
     """
-    shipping_lines = order_data.get("shipping_lines", [])
-    method_title = shipping_lines[0].get("method_title", "") if shipping_lines else ""
+    method_title = _first_shipping_line(order_data).get("method_title", "")
 
     if detect_delivery_type(method_title) != "pvz":
         return None
+
+    code = extract_cdek_meta(order_data)["office_code"]
+    if code:
+        return code
 
     address_2 = order_data.get("shipping", {}).get("address_2", "")
     if not address_2:

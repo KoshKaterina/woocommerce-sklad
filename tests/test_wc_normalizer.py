@@ -53,3 +53,31 @@ def test_bank_transfer_non_cdek_delivery_charged():
     n = normalize_wc_order(_wc_order("Банковский перевод", delivery_title="Курьер по Москве"))
     assert _delivery_price(n) == 50000
     assert n.is_paid is False  # ручная предоплата — всё равно не помечаем оплаченным
+
+
+def test_office_pickup_no_address():
+    """Самовывоз из офиса: ни плоского адреса, ни shipmentAddressFull."""
+    order = _wc_order("Онлайн оплата", delivery_title="Самовывоз из офиса Sunscrypt")
+    order["shipping_lines"][0]["method_id"] = "local_pickup"
+    order["shipping"] = {"city": "Москва", "state": "МОСКВА", "country": "RU",
+                         "address_1": "", "address_2": "", "postcode": ""}
+    n = normalize_wc_order(order)
+    assert n.shipment_address is None
+    assert n.shipment_address_parts is None
+
+
+def test_pvz_empty_address2_fallback_to_cdek_meta():
+    """Сбой чекаута (заказ 17130): address_2 пуст → код и город из меты CDEK."""
+    order = _wc_order("При получении", delivery_title="CDEK: Самовывоз, (2-3 дней)")
+    order["shipping_lines"][0]["method_id"] = "official_cdek"
+    order["shipping_lines"][0]["meta_data"] = [
+        {"key": "_official_cdek_office_code", "value": "SPB217"},
+        {"key": "_official_cdek_city", "value": "Санкт-Петербург"},
+    ]
+    order["shipping"] = {"city": "Санкт-Петербург", "state": "САНКТ-ПЕТЕРБУРГ",
+                         "country": "RU", "address_1": "", "address_2": "", "postcode": ""}
+    n = normalize_wc_order(order)
+    assert n.pvz_code == "SPB217"
+    assert n.shipment_address == "Россия, SPB217, Санкт-Петербург"
+    assert n.shipment_address_parts.city == "Санкт-Петербург"
+    assert n.shipment_address_parts.add_info == ""  # дубля города в «Другое» нет

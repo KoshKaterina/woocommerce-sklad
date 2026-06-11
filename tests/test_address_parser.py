@@ -67,8 +67,8 @@ def test_courier_dvld_no_flat_with_settlement():
     assert p.house == "9"
     assert p.apartment == ""
     assert p.street == "деревня Юрлово, ул Венская"
-    # регион не пишем в справочник, но сохраняем в «Другое»
-    assert p.add_info == "ЮРЛОВО, Г.О ХИМКИ"
+    # state НЕ пишем в «Другое» — дублирует город или грязный
+    assert p.add_info == ""
 
 
 def test_courier_kazakhstan_street_without_type():
@@ -129,6 +129,24 @@ def test_pvz_simple():
     )
     assert "KNP16" not in p.street
     assert "линия" in p.street
+
+
+def test_pvz_empty_address2_city_from_cdek_meta():
+    # сбой чекаута (заказ 17130): address_2 пуст → город из меты CDEK
+    p = parse_wc_address(_shipping(city="", address_2=""), "pvz",
+                         cdek_city="Санкт-Петербург")
+    assert p.city == "Санкт-Петербург"
+    assert p.street == ""
+
+
+def test_addinfo_never_filled():
+    # «Другое» не заполняем ни для курьера, ни для ПВЗ (была жалоба на дубль города)
+    p1 = parse_wc_address(_shipping(city="Москва", state="МОСКВА",
+                                    address_1="г Москва, ул Бутлерова, д 17"), "courier")
+    p2 = parse_wc_address(_shipping(city="Москва", state="МОСКВА",
+                                    address_2="MSK1, Москва, ул. Ленина, 1"), "pvz")
+    assert p1.add_info == ""
+    assert p2.add_info == ""
 
 
 # --- Прочее --------------------------------------------------------------

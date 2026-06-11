@@ -128,12 +128,17 @@ def _split_street_house_flat(address: str, city: str = "") -> tuple[str, str, st
     return street, house, apartment
 
 
-def parse_wc_address(shipping: dict, delivery_type: str) -> ShipmentAddressParts:
+def parse_wc_address(shipping: dict, delivery_type: str,
+                     cdek_city: str = "") -> ShipmentAddressParts:
     """Собрать ShipmentAddressParts из shipping{} заказа WooCommerce.
 
     delivery_type: "courier" / "pvz" / "postamat" (из detect_delivery_type).
     Курьер: компоненты из shipping + парсинг address_1.
     ПВЗ/постамат: address_2 — CDEK-строка с кодом ПВЗ; best-effort.
+    cdek_city — город из меты CDEK-плагина (fallback при пустом shipping.city).
+
+    addInfo («Другое») не заполняем: shipping.state либо дублирует город
+    (Москва/СПб), либо грязный («ЮРЛОВО, Г.О ХИМКИ») — менеджерам мешает.
     """
     iso = (shipping.get("country") or "").upper()
     country_name = ISO_TO_COUNTRY_NAME.get(iso, "")
@@ -142,6 +147,7 @@ def parse_wc_address(shipping: dict, delivery_type: str) -> ShipmentAddressParts
     region = (shipping.get("state") or "").strip()
 
     if delivery_type in ("pvz", "postamat"):
+        city = city or cdek_city.strip()
         # address_2: "MSK2469, Москва, ул. Твардовского, 2 корп.4, стр.1"
         raw = (shipping.get("address_2") or "").strip()
         # убираем ведущий код ПВЗ ("MSK2469")
@@ -160,5 +166,4 @@ def parse_wc_address(shipping: dict, delivery_type: str) -> ShipmentAddressParts
         street=street,
         house=house,
         apartment=apartment,
-        add_info=region,  # регион в справочник МС в MVP не пишем — сохраняем в «Другое»
     )
