@@ -39,6 +39,9 @@ def build_full(ms: MoySkladClient, parts) -> dict | None:
         full["house"] = parts.house
     if parts.apartment:
         full["apartment"] = parts.apartment
+    # МС при PUT сливает поля full, а не заменяет объект: старый дубль адреса
+    # в addInfo («Другое») надо стирать явно пустой строкой
+    full["addInfo"] = ""
     if parts.country_name:
         country_meta = ms.find_country_meta(parts.country_name)
         if country_meta:
