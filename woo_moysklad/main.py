@@ -31,6 +31,7 @@ log = get_logger(__name__)
 config = None
 order_processor = None
 reconciliation = None
+insales_client = None  # для /diag/insales
 ucoz_poller = None  # тип UcozPoller | None; импорт ленивый (uCoz — WIP)
 
 # Дедупликация вебхуков: {(order_id, action): timestamp}
@@ -44,7 +45,7 @@ _webhook_lock = asyncio.Lock()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Инициализация всех компонентов при старте."""
-    global config, order_processor, reconciliation, ucoz_poller
+    global config, order_processor, reconciliation, insales_client, ucoz_poller
 
     config = load_config()
     ms_client = MoySkladClient(config)
@@ -118,6 +119,34 @@ app = FastAPI(title="WooCommerce → Мой Склад", version="2.0", lifespan
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.0"}
+
+
+@app.get("/diag/insales")
+async def diag_insales():
+    """Диагностика InSales без логов: статус адаптера, доступ к API,
+    свежие заказы за 24 часа (номера и updated_at, до 5 штук)."""
+    if insales_client is None:
+        return {"enabled": False, "reason": "нет INSALES_API_KEY/INSALES_PASSWORD"}
+
+    ok, detail = await asyncio.to_thread(insales_client.check_access)
+    result = {"enabled": True, "api_ok": ok, "detail": detail}
+    if not ok:
+        return result
+
+    from datetime import datetime, timedelta, timezone
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    try:
+        orders = await asyncio.to_thread(
+            insales_client.get_orders, since.isoformat()
+        )
+        result["orders_updated_24h"] = len(orders)
+        result["recent"] = [
+            {"number": o.get("number"), "updated_at": o.get("updated_at")}
+            for o in orders[-5:]
+        ]
+    except Exception as e:
+        result["orders_error"] = f"{type(e).__name__}: {e}"
+    return result
 
 
 @app.post("/webhook/order")
