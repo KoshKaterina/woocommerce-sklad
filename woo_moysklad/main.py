@@ -59,6 +59,14 @@ async def lifespan(app: FastAPI):
         insales_client = InSalesClient(config)
         adapters.append(InSalesSourceAdapter(insales_client, order_processor))
         log.info("InSales adapter включён", shop=config.INSALES_SHOP_URL)
+        # Самопроверка доступа: гео-блок/креды видны сразу при старте,
+        # а не как error-строки сверки (их часто нет в экспортах логов)
+        ok, detail = insales_client.check_access()
+        if ok:
+            log.info("InSales API: доступ проверен", detail=detail)
+        else:
+            log.info("InSales API НЕДОСТУПЕН — заказы InSales не будут передаваться",
+                     detail=detail)
     else:
         log.info("InSales adapter выключен — нет переменных INSALES_*")
 

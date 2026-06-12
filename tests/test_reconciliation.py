@@ -247,3 +247,24 @@ def test_insales_fetch_keeps_order_with_unparseable_updated_at():
     result = adapter.fetch_modified_in_window(window_end - timedelta(minutes=9), window_end)
 
     assert [o["id"] for o in result] == [1, 2, 3]
+
+
+def test_insales_check_access_statuses():
+    """check_access: 200 → ok; 403 → подсказка про гео-блок; исключение → не падает."""
+    from woo_moysklad.insales.client import InSalesClient
+
+    client = InSalesClient.__new__(InSalesClient)
+    client.base_url = "https://tangemshop.ru/admin"
+    client.session = MagicMock()
+
+    client.session.get.return_value = MagicMock(status_code=200)
+    ok, detail = client.check_access()
+    assert ok and detail == "200 OK"
+
+    client.session.get.return_value = MagicMock(status_code=403)
+    ok, detail = client.check_access()
+    assert not ok and "гео-блок" in detail
+
+    client.session.get.side_effect = ConnectionError("dns fail")
+    ok, detail = client.check_access()
+    assert not ok and "dns fail" in detail

@@ -49,6 +49,27 @@ class InSalesClient:
         resp.raise_for_status()
         return resp.json()
 
+    def check_access(self) -> tuple[bool, str]:
+        """Лёгкая проверка доступности API (1 заказ), без raise.
+
+        InSales отвечает только с российских IP (иначе 403 «Доступ ограничен»),
+        поэтому при деплое важно сразу увидеть, что API вообще достижим.
+        """
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/orders.json", params={"per_page": 1}, timeout=15
+            )
+        except Exception as e:
+            return False, f"{type(e).__name__}: {e}"
+        if resp.status_code == 200:
+            return True, "200 OK"
+        hint = ""
+        if resp.status_code == 403:
+            hint = " — похоже на гео-блок (InSales принимает только российские IP)"
+        elif resp.status_code == 401:
+            hint = " — неверные INSALES_API_KEY/INSALES_PASSWORD"
+        return False, f"HTTP {resp.status_code}{hint}"
+
     def get_order(self, order_id: int) -> dict:
         """Получить заказ по внутреннему ID (не number!)."""
         return self._request(f"orders/{order_id}")
