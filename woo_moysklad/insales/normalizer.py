@@ -187,6 +187,17 @@ def build_delivery_service_name(delivery_info: dict, delivery_title: str) -> str
     return f"CDEK: {delivery_type}"
 
 
+def normalize_insales_payment_title(payment_title: str) -> str:
+    """Привести название способа оплаты InSales к каноническому.
+
+    «Ozon Pay» (в т.ч. с суффиксом «(неактивен)») — это онлайн-оплата:
+    в доп.поле «Способ оплаты» МС пишем «Онлайн-оплата», как в WC.
+    """
+    if "ozon pay" in payment_title.lower():
+        return "Онлайн-оплата"
+    return payment_title
+
+
 def map_insales_payment_type(payment_title: str) -> str | None:
     """Определить тип приёма платежа."""
     lower = payment_title.lower()
@@ -304,7 +315,7 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     delivery_info = order_data.get("delivery_info") or {}
     shipping_address = order_data.get("shipping_address") or {}
     delivery_title = order_data.get("delivery_title", "")
-    payment_title = order_data.get("payment_title", "")
+    payment_title = normalize_insales_payment_title(order_data.get("payment_title", ""))
     discounts = order_data.get("discounts", [])
 
     # Клиент (имя — из client, при отсутствии буквенного имени берём получателя

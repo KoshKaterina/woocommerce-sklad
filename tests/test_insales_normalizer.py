@@ -164,6 +164,16 @@ def test_payment_cod():
     assert map_insales_payment_type("Оплата при получении") == "noncash"
 
 
+def test_payment_ozon_pay_normalized():
+    """Ozon Pay (любое написание) → «Онлайн-оплата» + prepaid."""
+    from woo_moysklad.insales.normalizer import normalize_insales_payment_title
+    assert normalize_insales_payment_title("Ozon Pay (неактивен)") == "Онлайн-оплата"
+    assert normalize_insales_payment_title("Оплата с OZON Pay") == "Онлайн-оплата"
+    assert normalize_insales_payment_title("Оплата при получении") == "Оплата при получении"
+    assert map_insales_payment_type(
+        normalize_insales_payment_title("Ozon Pay (неактивен)")) == "prepaid"
+
+
 # --- map_insales_delivery_sd ---
 
 def test_delivery_sd_cdek():
