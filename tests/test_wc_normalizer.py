@@ -64,6 +64,22 @@ def test_office_pickup_no_address():
     n = normalize_wc_order(order)
     assert n.shipment_address is None
     assert n.shipment_address_parts is None
+    assert n.delivery_sd_key == "showroom"
+
+
+def test_office_pickup_by_method_id_only():
+    """local_pickup с нестандартным названием метода → всё равно showroom."""
+    order = _wc_order("Онлайн оплата", delivery_title="Забрать самим")
+    order["shipping_lines"][0]["method_id"] = "local_pickup"
+    n = normalize_wc_order(order)
+    assert n.delivery_sd_key == "showroom"
+
+
+def test_delivery_sd_dostavista_courier_moscow():
+    """Московская курьерка (Достависта) → ключ dostavista."""
+    n = normalize_wc_order(_wc_order("Онлайн оплата",
+                                     delivery_title="Курьерская доставка Достависта"))
+    assert n.delivery_sd_key == "dostavista"
 
 
 def test_pvz_empty_address2_fallback_to_cdek_meta():

@@ -162,16 +162,24 @@ def extract_promo_code(order_data: dict) -> str | None:
 def map_delivery_sd(method_title: str) -> str | None:
     """Определить элемент справочника 'Доставка (СД)' по method_title.
 
-    Возвращает ключ для конфига: "cdek", "yandex" или None.
-    Для самовывоза из офиса атрибут не заполняется — достаточно услуги в заказе.
+    Возвращает ключ для конфига: "cdek", "dostavista", "showroom" или None.
+
+    WC-интеграция ставит автоматически только три значения (2026-06):
+    - любой СДЭК → "СДЭК" (обычный; ускоренный тариф менеджер ставит вручную)
+    - курьерская доставка Достависта (курьерка по Москве) → "Достависта (стандартная)"
+    - самовывоз из офиса Sunscrypt → "Самовывоз из шоурума Sunscrypt"
+    Остальные значения справочника (экспрессы, Яндекс Доставка, Почта России) —
+    только ручной выбор менеджера, из заказа не передаются.
+    InSales-аналог — map_insales_delivery_sd (СДЭК + ExpressRMS(Самовывоз)).
     """
     lower = method_title.lower()
     if "cdek" in lower or "сдэк" in lower:
         return "cdek"
-    if "курьерская по" in lower or "доставка курьером по москве" in lower.replace("  ", " "):
-        return "yandex"
+    if ("достависта" in lower or "курьерская по" in lower
+            or "доставка курьером по москве" in lower.replace("  ", " ")):
+        return "dostavista"
     if "самовывоз из офиса" in lower or "самовывоз офис" in lower:
-        return None  # атрибут "Доставка (СД)" для самовывоза из офиса не ставим
+        return "showroom"
 
     log.warning("Неизвестная служба доставки, поле 'Доставка (СД)' не заполнено",
                 method_title=method_title)

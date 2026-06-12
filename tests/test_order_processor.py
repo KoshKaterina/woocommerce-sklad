@@ -57,7 +57,8 @@ def make_config():
     cfg.MS_PAYMENT_TYPE_PREPAID_ID = "pt-prepaid"
     cfg.MS_PAYMENT_TYPE_NONCASH_ID = "pt-noncash"
     cfg.MS_DELIVERY_SD_CDEK_ID = "sd-cdek"
-    cfg.MS_DELIVERY_SD_YANDEX_ID = "sd-yandex"
+    cfg.MS_DELIVERY_SD_DOSTAVISTA_ID = "sd-dostavista"
+    cfg.MS_DELIVERY_SD_SHOWROOM_ID = "sd-showroom"
     return cfg
 
 

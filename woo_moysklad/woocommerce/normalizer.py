@@ -78,7 +78,11 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
 
     # Маппинг атрибутов
     payment_type_key = _safe("map_payment_type", lambda: map_payment_type(payment_title))
-    delivery_sd_key = _safe("map_delivery_sd", lambda: map_delivery_sd(method_title))
+    if is_office_pickup(order_data):
+        # local_pickup ловим по method_id, не полагаясь на название метода
+        delivery_sd_key = "showroom"
+    else:
+        delivery_sd_key = _safe("map_delivery_sd", lambda: map_delivery_sd(method_title))
     delivery_type_key = _safe("map_delivery_type", lambda: map_delivery_type(method_title))
     pvz_code = _safe("extract_pvz_code", lambda: extract_pvz_code(order_data))
     # Самовывоз из офиса — адреса доставки нет, ни плоского, ни структурного

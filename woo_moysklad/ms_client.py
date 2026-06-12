@@ -124,6 +124,10 @@ class MoySkladClient:
         """PUT-запрос к API МС."""
         return self._request("PUT", path, json_data=data)
 
+    def delete(self, path: str) -> dict:
+        """DELETE-запрос к API МС (успех — HTTP 204, вернётся {})."""
+        return self._request("DELETE", path)
+
     # --- Хелперы ---
 
     def make_meta(self, entity_type: str, uuid: str) -> dict:

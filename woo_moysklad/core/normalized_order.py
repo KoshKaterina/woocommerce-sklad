@@ -45,7 +45,7 @@ class NormalizedOrder:
     # Замапленные атрибуты (None = не определён / пропустить)
     payment_title: str = ""
     payment_type_key: str | None = None      # "prepaid" / "noncash" / None
-    delivery_sd_key: str | None = None       # "cdek" / "yandex" / None
+    delivery_sd_key: str | None = None       # "cdek"/"dostavista"/"showroom"/"rms_pickup"/None
     delivery_type_key: str | None = None     # "pvz" / "postamat" / "courier" / None
     pvz_code: str | None = None
     shipment_address: str | None = None

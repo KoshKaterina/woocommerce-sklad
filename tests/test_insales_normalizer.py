@@ -142,7 +142,8 @@ def test_delivery_name_courier():
 
 
 def test_delivery_name_showroom():
-    assert build_delivery_service_name({}, "Самовывоз из Шоурума") == "Самовывоз из офиса Sunscrypt"
+    # Самовывоз InSales — со склада ExpressRMS, НЕ из офиса/шоурума Sunscrypt
+    assert build_delivery_service_name({}, "Самовывоз из Шоурума") == "Самовывоз со склада"
 
 
 def test_delivery_name_no_delivery():
@@ -173,9 +174,9 @@ def test_delivery_sd_none():
     assert map_insales_delivery_sd({}) is None
 
 
-def test_delivery_sd_showroom_returns_none():
-    # Самовывоз из Шоурума — атрибут "Доставка (СД)" не ставим
-    assert map_insales_delivery_sd({}, "Самовывоз из Шоурума") is None
+def test_delivery_sd_showroom_rms_pickup():
+    # Самовывоз из Шоурума → «ExpressRMS(Самовывоз)»
+    assert map_insales_delivery_sd({}, "Самовывоз из Шоурума") == "rms_pickup"
 
 
 # --- map_insales_delivery_type ---
@@ -255,6 +256,20 @@ def test_promo_code_from_real_fixture():
 
     # estimated_cost = сумма товаров со скидкой, целые рубли
     assert order.estimated_cost == "36963"
+
+
+def test_normalize_showroom_pickup_from_fixture():
+    """Заказ #17665 — самовывоз из шоурума: ExpressRMS(Самовывоз) + услуга со склада."""
+    fixture = os.path.join(FIXTURES_DIR, "insales_order_with_promo.json")
+    if not os.path.exists(fixture):
+        pytest.skip("Нет фикстуры заказа с самовывозом")
+    with open(fixture, encoding="utf-8") as f:
+        order_data = json.load(f)
+    order = normalize_insales_order(order_data, make_config())
+
+    assert order.delivery_sd_key == "rms_pickup"
+    assert [s.name for s in order.delivery_services] == ["Самовывоз со склада"]
+    assert order.delivery_services[0].price_cents == 0  # самовывоз бесплатный
 
 
 # --- normalize_insales_order (интеграционный) ---

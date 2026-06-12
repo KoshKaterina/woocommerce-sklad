@@ -141,13 +141,14 @@ def build_delivery_service_name(delivery_info: dict, delivery_title: str) -> str
       Диапазон, с запятой:   "CDEK: Самовывоз, (5-6 дней)"
 
     Особые случаи:
-      "Самовывоз из Шоурума"   → "Самовывоз из офиса Sunscrypt"
+      "Самовывоз из Шоурума"   → "Самовывоз со склада" (склад ExpressRMS,
+                                  НЕ шоурум/офис Sunscrypt — это WC-самовывоз)
       "Доставка не требуется"  → None
     """
     lower_title = delivery_title.lower()
 
     if "самовывоз из шоурума" in lower_title:
-        return "Самовывоз из офиса Sunscrypt"
+        return "Самовывоз со склада"
 
     if "не требуется" in lower_title:
         return None
@@ -200,10 +201,12 @@ def map_insales_payment_type(payment_title: str) -> str | None:
 def map_insales_delivery_sd(delivery_info: dict, delivery_title: str = "") -> str | None:
     """Определить службу доставки для атрибута "Доставка (СД)" МС.
 
-    СДЭК → 'cdek' по shipping_company.
-    Самовывоз из офиса Sunscrypt → None (атрибут не проставляется,
-    самовывоз отражается только услугой доставки в заказе).
+    СДЭК (любой тариф) → 'cdek' по shipping_company.
+    "Самовывоз из Шоурума" → 'rms_pickup' («ExpressRMS(Самовывоз)»).
+    Прочее ("Доставка не требуется", неизвестное) → None — менеджер ставит вручную.
     """
+    if "самовывоз из шоурума" in delivery_title.lower():
+        return "rms_pickup"
     if not delivery_info:
         return None
     company = (delivery_info.get("shipping_company") or "").lower()

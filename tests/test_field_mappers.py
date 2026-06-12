@@ -195,17 +195,25 @@ def test_promo_code_empty():
 # --- map_delivery_sd ---
 
 def test_delivery_sd_cdek():
+    # Все СДЭКи (любой тариф) → «СДЭК»; ускоренный тариф менеджер ставит вручную
     assert map_delivery_sd("CDEK: Самовывоз (1 дней)") == "cdek"
+    assert map_delivery_sd("СДЭК курьер (2-3 дней)") == "cdek"
 
-def test_delivery_sd_yandex():
-    assert map_delivery_sd("Курьерская по Москве и МО") == "yandex"
+def test_delivery_sd_dostavista():
+    # Московская курьерка → «Достависта (стандартная)»
+    assert map_delivery_sd("Курьерская доставка Достависта") == "dostavista"
+    assert map_delivery_sd("Курьерская по Москве и МО") == "dostavista"
 
-def test_delivery_sd_pickup_returns_none():
-    # Самовывоз из офиса — атрибут "Доставка (СД)" не ставим, достаточно услуги в заказе
-    assert map_delivery_sd("Самовывоз из офиса Sunscrypt") is None
+def test_delivery_sd_office_pickup_showroom():
+    # Самовывоз из офиса → «Самовывоз из шоурума Sunscrypt»
+    assert map_delivery_sd("Самовывоз из офиса Sunscrypt") == "showroom"
 
 def test_delivery_sd_unknown():
+    # Прочее (в т.ч. значения «только вручную»: Яндекс, Почта России, ExpressRMS)
+    # интеграция не проставляет
     assert map_delivery_sd("Наценка за наложенный платеж") is None
+    assert map_delivery_sd("Почта России") is None
+    assert map_delivery_sd("Яндекс Доставка") is None
 
 
 # --- map_delivery_type ---

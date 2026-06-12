@@ -208,7 +208,9 @@ class OrderProcessor:
     def _resolve_delivery_sd_id(self, key: str) -> str | None:
         mapping = {
             "cdek": self.config.MS_DELIVERY_SD_CDEK_ID,
-            "yandex": self.config.MS_DELIVERY_SD_YANDEX_ID,
+            "dostavista": self.config.MS_DELIVERY_SD_DOSTAVISTA_ID,
+            "showroom": self.config.MS_DELIVERY_SD_SHOWROOM_ID,
+            "rms_pickup": self.config.MS_DELIVERY_SD_RMS_PICKUP_ID,
         }
         return mapping.get(key)
 
