@@ -192,6 +192,21 @@ def test_address_parts_pvz_from_outlet():
     assert p.add_info == ""
 
 
+def test_address_parts_pvz_prefixed_outlet():
+    """outlet.address с префиксом «ПВЗ СДЭК <индекс>» (заказ 18005): индекс
+    вытаскивается, префикс не попадает в улицу."""
+    from woo_moysklad.insales.normalizer import build_insales_address_parts
+    di = {"outlet": {"address": "ПВЗ СДЭК 166000, Россия, Ненецкий автономный "
+                                "округ, Нарьян-Мар, ул. Полярная, 16"}}
+    sa = {"kladr_json": {"country": "RU", "city": "Нарьян-Мар"}}
+    p = build_insales_address_parts(di, sa, "Доставка в Пункты выдачи (СДЭК)")
+    assert p.postal_code == "166000"
+    assert p.country_name == "Россия"
+    assert p.city == "Нарьян-Мар"
+    assert p.street == "ул. Полярная"
+    assert p.house == "16"
+
+
 def test_address_parts_courier_freeform():
     """Курьер: индекс/город из КЛАДР, улица/дом/кв — из строки покупателя."""
     from woo_moysklad.insales.normalizer import build_insales_address_parts

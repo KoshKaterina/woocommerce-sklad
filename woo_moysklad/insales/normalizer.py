@@ -267,6 +267,8 @@ def _parse_outlet_address(address: str, city: str = "",
 
     "628403, Россия, Ханты-Мансийский автономный округ - Югра, Сургут, ул. Юности, 8"
     → индекс / страна / (регион пропускаем) / город / улица / дом.
+    Первый токен бывает с текстовым префиксом («ПВЗ СДЭК 166000») — индекс
+    вытаскиваем, префикс отбрасываем (код ПВЗ и так в отдельном поле).
     """
     from woo_moysklad.core.address_parser import (
         ISO_TO_COUNTRY_NAME,
@@ -277,8 +279,11 @@ def _parse_outlet_address(address: str, city: str = "",
     tokens = [t.strip() for t in address.split(",") if t.strip()]
 
     postal = ""
-    if tokens and re.fullmatch(r"\d{5,6}", tokens[0]):
-        postal = tokens.pop(0)
+    if tokens:
+        m = re.fullmatch(r"\D*?(\d{5,6})", tokens[0])
+        if m:
+            postal = m.group(1)
+            tokens.pop(0)
 
     country = fallback_country
     country_names = {n.lower() for n in ISO_TO_COUNTRY_NAME.values()}
@@ -459,6 +464,11 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     shipment_address_parts = _safe("shipment_address_parts",
                                     lambda: build_insales_address_parts(
                                         delivery_info, shipping_address, delivery_title))
+    # Есть структура — плоскую строку НЕ шлём: МС сгенерит её из full сам,
+    # а несовпадающую переданную строку он складывает дублем в addInfo («Другое»).
+    # Плоский остаётся только как fallback при ошибке разбора.
+    if shipment_address_parts is not None:
+        shipment_address = None
     promo_code = _safe("promo_code", lambda: extract_insales_promo_code(discounts))
 
     # Услуга доставки

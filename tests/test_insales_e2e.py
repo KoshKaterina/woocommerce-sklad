@@ -148,11 +148,10 @@ def test_e2e_sample_order_creates_in_ms():
     # Склад — основной (нет вскрытых)
     assert "store-main" in body["store"]["meta"]["href"]
 
-    # Адрес ПВЗ из delivery_info.outlet.address
-    assert body["shipmentAddress"] == \
-        "628403, Россия, Ханты-Мансийский автономный округ - Югра, Сургут, ул. Юности, 8"
-
-    # …и нативный shipmentAddressFull, разобранный из той же строки
+    # Адрес — ТОЛЬКО нативный shipmentAddressFull (разобран из outlet.address).
+    # Плоскую строку не шлём: МС сгенерит её из структуры сам, а несовпадающую
+    # переданную строку он дублирует в addInfo («Другое»).
+    assert "shipmentAddress" not in body
     full = body["shipmentAddressFull"]
     assert full["postalCode"] == "628403"
     assert full["city"] == "Сургут"
@@ -255,10 +254,11 @@ def test_e2e_courier_order_uses_shipping_address():
 
     body = post_calls(ms, "entity/customerorder")[0][0][1]
 
-    # Должен быть какой-то адрес
-    assert body.get("shipmentAddress")
-    # И не равен outlet.address (т.к. курьер, не ПВЗ)
-    delivery_info = order.get("delivery_info") or {}
-    outlet_address = (delivery_info.get("outlet") or {}).get("address")
-    if outlet_address:
-        assert body["shipmentAddress"] != outlet_address
+    # Адрес — структурой (плоский не шлём, МС сгенерит его из full)
+    assert "shipmentAddress" not in body
+    full = body["shipmentAddressFull"]
+    assert full["city"] == "Нижний Новгород"
+    assert full["postalCode"] == "603000"
+    assert full["street"] == "будьвар 60 летия Октября"
+    assert full["house"] == "23к1"
+    assert full["apartment"] == "242"
