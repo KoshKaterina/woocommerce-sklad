@@ -22,7 +22,11 @@ class InSalesClient:
         # Креды через Basic Auth, НЕ в URL: иначе пароль утекает в логи
         # с текстом HTTPError, а спецсимволы ломают URL
         self.session.auth = (config.INSALES_API_KEY, config.INSALES_PASSWORD)
-        self.session.headers.update({"Content-Type": "application/json"})
+        self.session.headers.update({
+            "Content-Type": "application/json",
+            # Дефолтный UA "python-requests/x.y" часто режется WAF'ами
+            "User-Agent": "woo-moysklad-integration/2.0",
+        })
 
     def _request(self, endpoint: str, params: dict | None = None) -> dict | list:
         """GET-запрос с отслеживанием rate limit."""
@@ -65,10 +69,14 @@ class InSalesClient:
             return True, "200 OK"
         hint = ""
         if resp.status_code == 403:
-            hint = " — похоже на гео-блок (InSales принимает только российские IP)"
+            hint = " — IP заблокирован InSales (гео/подсеть/WAF)"
         elif resp.status_code == 401:
             hint = " — неверные INSALES_API_KEY/INSALES_PASSWORD"
-        return False, f"HTTP {resp.status_code}{hint}"
+        # Заголовок страницы блокировки — для диагностики
+        import re
+        m = re.search(r"<title>([^<]*)</title>", resp.text or "", re.IGNORECASE)
+        title = f", страница: «{m.group(1).strip()}»" if m else ""
+        return False, f"HTTP {resp.status_code}{hint}{title}"
 
     def get_order(self, order_id: int) -> dict:
         """Получить заказ по внутреннему ID (не number!)."""

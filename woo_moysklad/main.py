@@ -131,6 +131,13 @@ async def diag_insales():
     ok, detail = await asyncio.to_thread(insales_client.check_access)
     result = {"enabled": True, "api_ok": ok, "detail": detail}
     if not ok:
+        # Исходящий IP контейнера — чтобы понять, кого именно блокирует InSales
+        import requests as _rq
+        try:
+            result["egress_ip"] = (await asyncio.to_thread(
+                _rq.get, "https://api.ipify.org", timeout=10)).text.strip()
+        except Exception as e:
+            result["egress_ip_error"] = f"{type(e).__name__}: {e}"
         return result
 
     from datetime import datetime, timedelta, timezone
