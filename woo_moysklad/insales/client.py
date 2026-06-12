@@ -17,11 +17,11 @@ class InSalesClient:
     """
 
     def __init__(self, config):
-        self.base_url = (
-            f"https://{config.INSALES_API_KEY}:{config.INSALES_PASSWORD}"
-            f"@{config.INSALES_SHOP_URL}/admin"
-        )
+        self.base_url = f"https://{config.INSALES_SHOP_URL}/admin"
         self.session = requests.Session()
+        # Креды через Basic Auth, НЕ в URL: иначе пароль утекает в логи
+        # с текстом HTTPError, а спецсимволы ломают URL
+        self.session.auth = (config.INSALES_API_KEY, config.INSALES_PASSWORD)
         self.session.headers.update({"Content-Type": "application/json"})
 
     def _request(self, endpoint: str, params: dict | None = None) -> dict | list:

@@ -210,11 +210,19 @@ def test_insales_ms_order_number_has_suffix():
 
 
 def test_insales_fetch_filters_by_updated_at_upper_bound():
-    """InSales API не умеет upper bound — фильтруется на клиенте по updated_at <= window_end."""
+    """InSales API не умеет upper bound — фильтруется на клиенте по updated_at <= window_end.
+
+    updated_at приходит в зоне магазина (+03:00) — сравнение должно быть
+    по времени, а не по ISO-строке (строки с разными зонами несравнимы).
+    """
     insales = MagicMock()
     insales.get_orders.return_value = [
-        {"id": 1, "updated_at": "2026-04-22T09:00:00+00:00"},
-        {"id": 2, "updated_at": "2026-04-22T12:00:00+00:00"},  # вне окна
+        # 12:55 МСК = 09:55 UTC — внутри окна, хотя строка "больше" UTC-строки конца окна
+        {"id": 1, "updated_at": "2026-04-22T12:55:00.123+03:00"},
+        # 13:05 МСК = 10:05 UTC — вне окна
+        {"id": 2, "updated_at": "2026-04-22T13:05:00.456+03:00"},
+        # UTC-офсет тоже поддерживаем
+        {"id": 3, "updated_at": "2026-04-22T09:00:00+00:00"},
     ]
     adapter = InSalesSourceAdapter(insales, MagicMock())
     window_end = datetime(2026, 4, 22, 10, 0, tzinfo=timezone.utc)
@@ -222,4 +230,20 @@ def test_insales_fetch_filters_by_updated_at_upper_bound():
 
     result = adapter.fetch_modified_in_window(window_start, window_end)
 
-    assert [o["id"] for o in result] == [1]
+    assert [o["id"] for o in result] == [1, 3]
+
+
+def test_insales_fetch_keeps_order_with_unparseable_updated_at():
+    """Кривой/пустой updated_at не должен терять заказ — создание идемпотентно."""
+    insales = MagicMock()
+    insales.get_orders.return_value = [
+        {"id": 1, "updated_at": ""},
+        {"id": 2},  # поля нет вовсе
+        {"id": 3, "updated_at": "2026-04-22 12:55"},  # naive — несравнимо с aware
+    ]
+    adapter = InSalesSourceAdapter(insales, MagicMock())
+    window_end = datetime(2026, 4, 22, 10, 0, tzinfo=timezone.utc)
+
+    result = adapter.fetch_modified_in_window(window_end - timedelta(minutes=9), window_end)
+
+    assert [o["id"] for o in result] == [1, 2, 3]

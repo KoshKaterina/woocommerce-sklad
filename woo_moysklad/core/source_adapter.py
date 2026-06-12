@@ -100,8 +100,19 @@ class InSalesSourceAdapter(SourceAdapter):
         # — фильтруем по updated_at на клиенте
         updated_since = window_start.isoformat()
         orders = self.insales.get_orders(updated_since=updated_since)
-        end_iso = window_end.isoformat()
-        return [o for o in orders if (o.get("updated_at") or "") <= end_iso]
+        return [o for o in orders if self._updated_within(o, window_end)]
+
+    @staticmethod
+    def _updated_within(raw_order: dict, window_end: datetime) -> bool:
+        # updated_at приходит в зоне магазина (+03:00), window_end — UTC:
+        # сравнивать можно только как datetime, ISO-строки с разными зонами
+        # лексикографически несравнимы
+        raw = raw_order.get("updated_at") or ""
+        try:
+            return datetime.fromisoformat(raw) <= window_end
+        except (ValueError, TypeError):
+            # не распарсилось — не теряем заказ, создание идемпотентно
+            return True
 
     def order_id(self, raw_order: dict) -> str:
         return str(raw_order.get("id", ""))
