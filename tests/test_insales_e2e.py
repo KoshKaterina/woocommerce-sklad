@@ -152,6 +152,14 @@ def test_e2e_sample_order_creates_in_ms():
     assert body["shipmentAddress"] == \
         "628403, Россия, Ханты-Мансийский автономный округ - Югра, Сургут, ул. Юности, 8"
 
+    # …и нативный shipmentAddressFull, разобранный из той же строки
+    full = body["shipmentAddressFull"]
+    assert full["postalCode"] == "628403"
+    assert full["city"] == "Сургут"
+    assert full["street"] == "ул. Юности"
+    assert full["house"] == "8"
+    assert "addInfo" not in full  # «Другое» не заполняем
+
     # Позиции: 1 товар (TG130X3-B после маппинга TG-130X3-B) + 1 услуга доставки
     assert len(body["positions"]) == 2
     assert any("/product/TG130X3-B" in p["assortment"]["meta"]["href"]

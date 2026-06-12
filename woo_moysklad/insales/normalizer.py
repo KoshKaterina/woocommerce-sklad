@@ -261,6 +261,92 @@ def extract_insales_pvz_code(delivery_info: dict) -> str | None:
     return external_id or None
 
 
+def _parse_outlet_address(address: str, city: str = "",
+                          fallback_country: str = "") -> "ShipmentAddressParts":
+    """Разобрать структурированную строку адреса ПВЗ СДЭК.
+
+    "628403, Россия, Ханты-Мансийский автономный округ - Югра, Сургут, ул. Юности, 8"
+    → индекс / страна / (регион пропускаем) / город / улица / дом.
+    """
+    from woo_moysklad.core.address_parser import (
+        ISO_TO_COUNTRY_NAME,
+        ShipmentAddressParts,
+        _split_street_house_flat,
+    )
+
+    tokens = [t.strip() for t in address.split(",") if t.strip()]
+
+    postal = ""
+    if tokens and re.fullmatch(r"\d{5,6}", tokens[0]):
+        postal = tokens.pop(0)
+
+    country = fallback_country
+    country_names = {n.lower() for n in ISO_TO_COUNTRY_NAME.values()}
+    if tokens and tokens[0].lower() in country_names:
+        country = tokens.pop(0)
+
+    # город: если не передан из КЛАДР — берём токен перед улицей не выйдет надёжно,
+    # полагаемся на kladr_json.city (есть во всех заказах с локацией)
+    street, house, apartment = _split_street_house_flat(", ".join(tokens), city)
+    return ShipmentAddressParts(
+        postal_code=postal, country_name=country, city=city,
+        street=street, house=house, apartment=apartment,
+    )
+
+
+def build_insales_address_parts(delivery_info: dict, shipping_address: dict,
+                                delivery_title: str):
+    """ShipmentAddressParts для нативного shipmentAddressFull МС.
+
+    ПВЗ:    outlet.address — структурированная строка СДЭК, парсим уверенно.
+    Курьер: индекс/страна/город — из КЛАДР-данных InSales (валидированы чекаутом),
+            улица/дом/квартира — парсинг DaData-строки shipping_address.address
+            (тот же парсер, что и для WC).
+    Самовывоз из Шоурума / «не требуется»: None — адрес не пишем.
+    """
+    from woo_moysklad.core.address_parser import (
+        ISO_TO_COUNTRY_NAME,
+        ShipmentAddressParts,
+        _split_street_house_flat,
+    )
+
+    lower_title = delivery_title.lower()
+    if "самовывоз" in lower_title or "не требуется" in lower_title:
+        return None
+
+    shipping_address = shipping_address or {}
+    kladr = shipping_address.get("kladr_json") or {}
+    location = shipping_address.get("location") or {}
+    city = (shipping_address.get("city") or kladr.get("city") or "").strip()
+    iso = (kladr.get("country") or location.get("country") or "").upper()
+    country_name = ISO_TO_COUNTRY_NAME.get(iso, "")
+
+    outlet = (delivery_info or {}).get("outlet") or {}
+    if outlet.get("address"):
+        return _parse_outlet_address(outlet["address"], city, country_name)
+
+    # Курьер: точного подомового индекса у InSales нет — берём КЛАДР-индекс города
+    postal = str(shipping_address.get("zip") or location.get("kladr_zip")
+                 or kladr.get("zip") or "").strip()
+    raw = (shipping_address.get("address") or "").strip()
+    street, house, apartment = _split_street_house_flat(raw, city)
+
+    # Свободный ввод без DaData: «д.23к1 квартира 242» целиком уходит в дом —
+    # отрезаем квартиру/офис из хвоста
+    if house and not apartment:
+        m = re.search(r"[\s,]+(?:квартира|кв\.?|офис|оф\.?)\s*(\S+)$", house,
+                      re.IGNORECASE)
+        if m:
+            apartment = m.group(1)
+            house = house[:m.start()].strip()
+
+    parts = ShipmentAddressParts(
+        postal_code=postal, country_name=country_name, city=city,
+        street=street, house=house, apartment=apartment,
+    )
+    return None if parts.is_empty() else parts
+
+
 def build_insales_shipment_address(delivery_info: dict, shipping_address: dict,
                                    delivery_title: str) -> str | None:
     """Построить адрес доставки.
@@ -370,6 +456,9 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     shipment_address = _safe("shipment_address",
                               lambda: build_insales_shipment_address(
                                   delivery_info, shipping_address, delivery_title))
+    shipment_address_parts = _safe("shipment_address_parts",
+                                    lambda: build_insales_address_parts(
+                                        delivery_info, shipping_address, delivery_title))
     promo_code = _safe("promo_code", lambda: extract_insales_promo_code(discounts))
 
     # Услуга доставки
@@ -434,6 +523,7 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
         delivery_type_key=delivery_type_key,
         pvz_code=pvz_code,
         shipment_address=shipment_address,
+        shipment_address_parts=shipment_address_parts,
         description=comment,
         promo_code=promo_code,
         organization_id=config.MS_ORGANIZATION_INSALES_ID or None,

@@ -175,6 +175,62 @@ def test_payment_title_normalized_to_wc():
         normalize_insales_payment_title("Ozon Pay (неактивен)")) == "prepaid"
 
 
+# --- build_insales_address_parts ---
+
+def test_address_parts_pvz_from_outlet():
+    """ПВЗ: outlet.address СДЭК разбирается на компоненты."""
+    from woo_moysklad.insales.normalizer import build_insales_address_parts
+    di = {"outlet": {"address": "628403, Россия, Ханты-Мансийский автономный "
+                                "округ - Югра, Сургут, ул. Юности, 8"}}
+    sa = {"city": "Сургут", "kladr_json": {"country": "RU", "city": "Сургут"}}
+    p = build_insales_address_parts(di, sa, "Доставка в Пункты выдачи (СДЭК)")
+    assert p.postal_code == "628403"
+    assert p.country_name == "Россия"
+    assert p.city == "Сургут"
+    assert p.street == "ул. Юности"
+    assert p.house == "8"
+    assert p.add_info == ""
+
+
+def test_address_parts_courier_freeform():
+    """Курьер: индекс/город из КЛАДР, улица/дом/кв — из строки покупателя."""
+    from woo_moysklad.insales.normalizer import build_insales_address_parts
+    sa = {
+        "city": "Нижний Новгород",
+        "address": "будьвар 60 летия Октября, д.23к1 квартира 242",
+        "kladr_json": {"country": "RU", "city": "Нижний Новгород", "zip": "603000"},
+        "location": {"kladr_zip": "603000"},
+    }
+    p = build_insales_address_parts({}, sa, "Курьерская доставка (inSales Доставка)")
+    assert p.postal_code == "603000"
+    assert p.country_name == "Россия"
+    assert p.city == "Нижний Новгород"
+    assert p.street == "будьвар 60 летия Октября"
+    assert p.house == "23к1"
+    assert p.apartment == "242"
+
+
+def test_address_parts_courier_dadata():
+    """Курьер с чистой DaData-строкой — полный разбор."""
+    from woo_moysklad.insales.normalizer import build_insales_address_parts
+    sa = {
+        "city": "Москва",
+        "address": "г Москва, ул Бутлерова, д 17, кв 51",
+        "kladr_json": {"country": "RU", "city": "Москва", "zip": "117342"},
+    }
+    p = build_insales_address_parts({}, sa, "Курьерская доставка")
+    assert p.street == "ул Бутлерова"
+    assert p.house == "17"
+    assert p.apartment == "51"
+    assert p.postal_code == "117342"
+
+
+def test_address_parts_pickup_none():
+    from woo_moysklad.insales.normalizer import build_insales_address_parts
+    assert build_insales_address_parts({}, {}, "Самовывоз из Шоурума") is None
+    assert build_insales_address_parts({}, {}, "Доставка не требуется") is None
+
+
 # --- map_insales_delivery_sd ---
 
 def test_delivery_sd_cdek():
