@@ -261,9 +261,12 @@ def test_insales_check_access_statuses():
     ok, detail = client.check_access()
     assert ok and detail == "200 OK"
 
-    client.session.get.return_value = MagicMock(status_code=403)
+    client.session.get.return_value = MagicMock(
+        status_code=403,
+        text="<html><head><title>Доступ ограничен</title></head></html>",
+    )
     ok, detail = client.check_access()
-    assert not ok and "гео-блок" in detail
+    assert not ok and "заблокирован" in detail and "Доступ ограничен" in detail
 
     client.session.get.side_effect = ConnectionError("dns fail")
     ok, detail = client.check_access()
