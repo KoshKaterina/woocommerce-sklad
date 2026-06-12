@@ -140,6 +140,38 @@ def test_enrich_does_not_overwrite_real_name():
     assert patch["email"] == "m@x.ru"   # email дозаполнен
 
 
+def test_enrich_extends_incomplete_name():
+    """Имя из заказа дополняет существующее («Александр» + фамилия) → обновляем (заказ 17146)."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-17146",
+        "name": "Александр",            # неполное имя (напр. создан amoCRM)
+        "email": "alexlazarev656@gmail.com",
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty"},
+    }])
+    billing = {"first_name": "Александр Лазарев", "phone": "+79149080820",
+               "email": "alexlazarev656@gmail.com"}
+    handler.find_or_create(billing)
+    patch = ms.put.call_args[0][1]
+    assert patch["name"] == "Александр Лазарев"
+    assert patch["firstName"] == "Александр"
+    assert patch["lastName"] == "Лазарев"
+
+
+def test_enrich_no_extension_for_partial_word():
+    """«Алекс» vs «Александр Иванов» — слово не совпадает целиком, имя не трогаем."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-8",
+        "name": "Алекс",
+        "email": "a@x.ru",
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty"},
+    }])
+    billing = {"first_name": "Александр Иванов", "phone": "+79099371845", "email": "a@x.ru"}
+    handler.find_or_create(billing)
+    ms.put.assert_not_called()
+
+
 def test_enrich_skips_when_nothing_to_add():
     """Реальное имя + есть email → PUT не нужен."""
     handler, ms = make_handler(find_result=[{

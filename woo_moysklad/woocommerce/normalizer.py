@@ -42,9 +42,10 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
     method_title = shipping_lines[0].get("method_title", "") if shipping_lines else ""
     manual_prepayment = is_manual_prepayment(payment_title)
 
-    # Клиент
+    # Клиент: имя + фамилия (billing.last_name — отдельное поле WC)
     customer = NormalizedCustomer(
-        full_name=billing.get("first_name", ""),
+        full_name=" ".join(filter(None, [billing.get("first_name", "").strip(),
+                                         billing.get("last_name", "").strip()])),
         phone=billing.get("phone", ""),
         email=billing.get("email", ""),
     )

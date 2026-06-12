@@ -55,6 +55,19 @@ def test_bank_transfer_non_cdek_delivery_charged():
     assert n.is_paid is False  # ручная предоплата — всё равно не помечаем оплаченным
 
 
+def test_customer_full_name_includes_last_name():
+    """Фамилия из billing.last_name попадает в ФИО контрагента (заказ 17146)."""
+    order = _wc_order("Онлайн оплата")
+    order["billing"]["last_name"] = "Лазарев"
+    n = normalize_wc_order(order)
+    assert n.customer.full_name == "Иван Лазарев"
+
+
+def test_customer_full_name_without_last_name():
+    n = normalize_wc_order(_wc_order("Онлайн оплата"))
+    assert n.customer.full_name == "Иван"
+
+
 def test_office_pickup_no_address():
     """Самовывоз из офиса: ни плоского адреса, ни shipmentAddressFull."""
     order = _wc_order("Онлайн оплата", delivery_title="Самовывоз из офиса Sunscrypt")

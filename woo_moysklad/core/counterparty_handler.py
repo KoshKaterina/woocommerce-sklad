@@ -13,6 +13,18 @@ def _has_letters(s: str) -> bool:
     return any(ch.isalpha() for ch in s)
 
 
+def _is_name_extension(existing: str, full: str) -> bool:
+    """True, если full — это existing + продолжение (по словам, без учёта регистра).
+
+    «Александр» ⊂ «Александр Лазарев» → True (дописали фамилию)
+    «Александр» vs «Алексей Иванов»   → False (другое имя — не трогаем)
+    «Алекс» vs «Александр Иванов»     → False (слово не совпадает целиком)
+    """
+    ew = existing.lower().split()
+    fw = full.lower().split()
+    return bool(ew) and len(fw) > len(ew) and fw[:len(ew)] == ew
+
+
 def split_full_name(full_name: str) -> tuple[str, str, str]:
     """Разбить ФИО на (firstName, lastName, middleName).
 
@@ -80,14 +92,17 @@ class CounterpartyHandler:
     def _build_enrichment_patch(self, counterparty: dict, full_name: str, email: str) -> dict:
         """Поля для дозаполнения существующего контрагента данными из заказа.
 
-        Имя — только если у существующего оно «заглушка» (нет букв, обычно телефон)
-        или пустое: тогда ставим реальное ФИО из заказа. Реальное имя НЕ трогаем.
+        Имя — если у существующего оно «заглушка» (нет букв, обычно телефон) или
+        пустое, ЛИБО если имя из заказа дополняет существующее («Александр» →
+        «Александр Лазарев» — дописали фамилию). Иначе реальное имя НЕ трогаем.
         Email — только если у существующего пусто. Так не затираем правки менеджера.
         """
         patch: dict = {}
 
         existing_name = (counterparty.get("name") or "").strip()
-        if full_name and _has_letters(full_name) and not _has_letters(existing_name):
+        if full_name and _has_letters(full_name) and (
+                not _has_letters(existing_name)
+                or _is_name_extension(existing_name, full_name)):
             first, last, middle = split_full_name(full_name)
             patch["name"] = full_name
             patch["firstName"] = first
