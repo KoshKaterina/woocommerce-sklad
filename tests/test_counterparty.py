@@ -158,11 +158,26 @@ def test_enrich_extends_incomplete_name():
     assert patch["lastName"] == "Лазарев"
 
 
-def test_enrich_no_extension_for_partial_word():
-    """«Алекс» vs «Александр Иванов» — слово не совпадает целиком, имя не трогаем."""
+def test_enrich_extends_partial_word():
+    """«Алекс» → «Александр Иванов»: имя уточнили и дописали — обновляем."""
     handler, ms = make_handler(find_result=[{
         "id": "cp-8",
         "name": "Алекс",
+        "email": "a@x.ru",
+        "companyType": "individual",
+        "meta": {"href": "...", "type": "counterparty"},
+    }])
+    billing = {"first_name": "Александр Иванов", "phone": "+79099371845", "email": "a@x.ru"}
+    handler.find_or_create(billing)
+    patch = ms.put.call_args[0][1]
+    assert patch["name"] == "Александр Иванов"
+
+
+def test_enrich_no_extension_for_different_name():
+    """«Александра» vs «Александр Иванов» — не префикс, имя не трогаем."""
+    handler, ms = make_handler(find_result=[{
+        "id": "cp-10",
+        "name": "Александра",
         "email": "a@x.ru",
         "companyType": "individual",
         "meta": {"href": "...", "type": "counterparty"},

@@ -14,15 +14,16 @@ def _has_letters(s: str) -> bool:
 
 
 def _is_name_extension(existing: str, full: str) -> bool:
-    """True, если full — это existing + продолжение (по словам, без учёта регистра).
+    """True, если full начинается с existing и длиннее (без учёта регистра).
 
     «Александр» ⊂ «Александр Лазарев» → True (дописали фамилию)
+    «Алекс» ⊂ «Александр Иванов»      → True (имя уточнили и дописали)
     «Александр» vs «Алексей Иванов»   → False (другое имя — не трогаем)
-    «Алекс» vs «Александр Иванов»     → False (слово не совпадает целиком)
+    «Александра» vs «Александр Иванов» → False (existing длиннее совпадения)
     """
-    ew = existing.lower().split()
-    fw = full.lower().split()
-    return bool(ew) and len(fw) > len(ew) and fw[:len(ew)] == ew
+    ex = " ".join(existing.lower().split())
+    fl = " ".join(full.lower().split())
+    return bool(ex) and len(fl) > len(ex) and fl.startswith(ex)
 
 
 def split_full_name(full_name: str) -> tuple[str, str, str]:
