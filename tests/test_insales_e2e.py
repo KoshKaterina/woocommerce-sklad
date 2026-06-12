@@ -162,7 +162,7 @@ def test_e2e_sample_order_creates_in_ms():
     # Атрибуты
     attrs = attrs_index(body)
     assert attrs["attr-order-num"] == "17621 Tangemshop"
-    assert attrs["attr-pay-method"] == "Оплата онлайн"
+    assert attrs["attr-pay-method"] == "Онлайн-оплата"  # нормализовано к формулировке WC
     assert attrs["attr-pvz"] == "SUR18"
     # delivery_sd → cdek (customentity)
     assert isinstance(attrs["attr-del-sd"], dict)

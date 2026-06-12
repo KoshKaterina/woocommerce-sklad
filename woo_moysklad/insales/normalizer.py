@@ -188,12 +188,14 @@ def build_delivery_service_name(delivery_info: dict, delivery_title: str) -> str
 
 
 def normalize_insales_payment_title(payment_title: str) -> str:
-    """Привести название способа оплаты InSales к каноническому.
+    """Привести название способа оплаты InSales к формулировке WC.
 
-    «Ozon Pay» (в т.ч. с суффиксом «(неактивен)») — это онлайн-оплата:
-    в доп.поле «Способ оплаты» МС пишем «Онлайн-оплата», как в WC.
+    «Оплата онлайн», «Ozon Pay» (в т.ч. «(неактивен)»), «Оплата с OZON Pay» —
+    всё это онлайн-оплата: в доп.поле «Способ оплаты» МС пишем «Онлайн-оплата»,
+    как пишет WC. Остальные названия не трогаем.
     """
-    if "ozon pay" in payment_title.lower():
+    lower = payment_title.lower()
+    if "ozon pay" in lower or "онлайн" in lower:
         return "Онлайн-оплата"
     return payment_title
 

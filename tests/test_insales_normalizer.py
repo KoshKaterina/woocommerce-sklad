@@ -164,11 +164,12 @@ def test_payment_cod():
     assert map_insales_payment_type("Оплата при получении") == "noncash"
 
 
-def test_payment_ozon_pay_normalized():
-    """Ozon Pay (любое написание) → «Онлайн-оплата» + prepaid."""
+def test_payment_title_normalized_to_wc():
+    """Онлайн-оплата в любом написании InSales → формулировка WC «Онлайн-оплата»."""
     from woo_moysklad.insales.normalizer import normalize_insales_payment_title
     assert normalize_insales_payment_title("Ozon Pay (неактивен)") == "Онлайн-оплата"
     assert normalize_insales_payment_title("Оплата с OZON Pay") == "Онлайн-оплата"
+    assert normalize_insales_payment_title("Оплата онлайн") == "Онлайн-оплата"
     assert normalize_insales_payment_title("Оплата при получении") == "Оплата при получении"
     assert map_insales_payment_type(
         normalize_insales_payment_title("Ozon Pay (неактивен)")) == "prepaid"
@@ -297,7 +298,7 @@ def test_normalize_real_order(sample_insales_order):
     assert len(order.line_items) == 1
     assert order.line_items[0].sku == "TG130X3-B"  # маппинг TG-130X3-B → TG130X3-B
     assert order.line_items[0].price_cents == 760000
-    assert order.payment_title == "Оплата онлайн"
+    assert order.payment_title == "Онлайн-оплата"  # нормализовано к формулировке WC
     assert order.payment_type_key == "prepaid"
     assert order.delivery_sd_key == "cdek"
     assert order.delivery_type_key == "pvz"
