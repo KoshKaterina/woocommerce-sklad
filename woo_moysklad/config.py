@@ -16,6 +16,7 @@ log = get_logger(__name__)
 _HARDCODED_DEFAULTS = frozenset({
     "MS_ATTR_DELIVERY_TYPE_ID", "MS_ATTR_DELIVERY_COST_ID", "MS_ATTR_ESTIMATED_COST_ID",
     "MS_ATTR_TOTAL_TO_PAY_ID", "MS_ATTR_PAYMENT_TYPE_ID", "MS_ATTR_COURIER_COMMENT_ID",
+    "MS_ATTR_YM_CLIENT_ID",
     "MS_CUSTOMENTITY_PAYMENT_TYPE_ID", "MS_PAYMENT_TYPE_PREPAID_ID", "MS_PAYMENT_TYPE_NONCASH_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "MS_DELIVERY_SD_DOSTAVISTA_ID", "MS_DELIVERY_SD_SHOWROOM_ID",
@@ -66,6 +67,10 @@ class Config:
     # «Комментарий курьеру» — НЕ заполняется интеграцией (менеджер пишет вручную).
     # Комментарий покупателя идёт только в нативное поле «Комментарий» (description).
     MS_ATTR_COURIER_COMMENT_ID: str = "ed537fe2-5d04-11f1-0a80-0e18002576eb"
+    # «id (для метрики)» — ClientID Яндекс.Метрики из заказа WC (meta_data["ym_client_id"]);
+    # сквозная аналитика МС → amoCRM → Метрика. Тип поля — string (19-значное число
+    # пишем строкой, без потери точности). Захардкожено (поле создано 2026-06).
+    MS_ATTR_YM_CLIENT_ID: str = "26b2eac0-6806-11f1-0a80-045b00304eed"
 
     # UUID элементов справочника "Прием платежа" — захардкожено
     MS_PAYMENT_TYPE_PREPAID_ID: str = "0db95b3b-60ac-11f1-0a80-1b9f0005d237"   # "1"

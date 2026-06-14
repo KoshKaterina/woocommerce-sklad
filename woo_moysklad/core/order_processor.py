@@ -354,6 +354,8 @@ class OrderProcessor:
         # его вручную при необходимости. Комментарий покупателя идёт только в
         # нативное поле «Комментарий» (body["description"]). Поля не связаны.
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
+        # ClientID Яндекс.Метрики (string) — для сквозной аналитики; нет → не пишем
+        self._add_attr(attributes, cfg.MS_ATTR_YM_CLIENT_ID, order.ym_client_id)
 
         return attributes
 

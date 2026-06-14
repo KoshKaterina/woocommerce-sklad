@@ -159,6 +159,20 @@ def extract_promo_code(order_data: dict) -> str | None:
     return codes[0] if codes else None
 
 
+def extract_ym_client_id(order_data: dict) -> str | None:
+    """ClientID Яндекс.Метрики из meta_data заказа WC (ключ "ym_client_id").
+
+    Сквозная аналитика: значение ловится на сайте и кладётся в заказ Woo.
+    Нет ключа / пустое значение → None (поле в МС просто не заполняем).
+    Возвращаем строкой — это 19-значное число, точность важна.
+    """
+    for m in order_data.get("meta_data") or []:
+        if m.get("key") == "ym_client_id":
+            value = str(m.get("value") or "").strip()
+            return value or None
+    return None
+
+
 def map_delivery_sd(method_title: str) -> str | None:
     """Определить элемент справочника 'Доставка (СД)' по method_title.
 

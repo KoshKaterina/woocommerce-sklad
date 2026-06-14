@@ -8,6 +8,7 @@ from woo_moysklad.core.field_mappers import (
     extract_courier_comment,
     extract_promo_code,
     extract_pvz_code,
+    extract_ym_client_id,
     is_manual_prepayment,
     is_office_pickup,
     map_delivery_sd,
@@ -101,6 +102,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
         )
     description = _safe("extract_courier_comment", lambda: extract_courier_comment(order_data))
     promo_code = _safe("extract_promo_code", lambda: extract_promo_code(order_data))
+    ym_client_id = _safe("extract_ym_client_id", lambda: extract_ym_client_id(order_data))
 
     # Состояние оплаты
     is_cod = "при получении" in payment_title.lower()
@@ -124,6 +126,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
         shipment_address_parts=shipment_address_parts,
         description=description,
         promo_code=promo_code,
+        ym_client_id=ym_client_id,
         is_paid=is_paid,
         is_cod=is_cod,
     )

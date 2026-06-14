@@ -52,6 +52,7 @@ class NormalizedOrder:
     shipment_address_parts: "ShipmentAddressParts | None" = None  # для shipmentAddressFull
     description: str | None = None           # Комментарий покупателя
     promo_code: str | None = None
+    ym_client_id: str | None = None          # ClientID Яндекс.Метрики (WC meta_data)
 
     # Переопределения конфига (None = использовать дефолт)
     organization_id: str | None = None

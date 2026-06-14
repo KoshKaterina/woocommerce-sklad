@@ -52,6 +52,7 @@ def make_config():
     cfg.MS_ATTR_ESTIMATED_COST_ID = "attr-est-cost"
     cfg.MS_ATTR_TOTAL_TO_PAY_ID = "attr-total"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
+    cfg.MS_ATTR_YM_CLIENT_ID = "attr-ym"
     cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID = "ce-del-sd"
     cfg.MS_CUSTOMENTITY_PAYMENT_TYPE_ID = "ce-pay-type"
     cfg.MS_PAYMENT_TYPE_PREPAID_ID = "pt-prepaid"
@@ -111,6 +112,29 @@ def test_counterparty_error_raises(sample_order):
     cp.find_or_create_from_normalized.side_effect = CounterpartyError("test error")
     with pytest.raises(OrderProcessingError):
         processor.process_order(sample_order)
+
+
+def test_ym_client_id_in_body(sample_order):
+    """ym_client_id из meta_data заказа WC → атрибут «id (для метрики)» в теле."""
+    sample_order["meta_data"] = [
+        {"key": "ym_client_id", "value": "1781443761947216235"},
+    ]
+    processor, ms, cp, pm = make_processor()
+    processor.process_order(sample_order)
+
+    attrs = ms.post.call_args[0][1]["attributes"]
+    ym = [a for a in attrs if "attr-ym" in a["meta"]["href"]]
+    assert len(ym) == 1
+    # строкой, без потери точности 19-значного числа
+    assert ym[0]["value"] == "1781443761947216235"
+
+
+def test_ym_client_id_absent_when_no_meta(sample_order):
+    """Нет ym_client_id в заказе → атрибут не добавляется, заказ создаётся штатно."""
+    processor, ms, cp, pm = make_processor()
+    processor.process_order(sample_order)
+    attrs = ms.post.call_args[0][1]["attributes"]
+    assert not [a for a in attrs if "attr-ym" in a["meta"]["href"]]
 
 
 def test_positions_passed_to_body(sample_order):

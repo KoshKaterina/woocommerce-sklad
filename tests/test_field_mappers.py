@@ -12,6 +12,7 @@ from woo_moysklad.core.field_mappers import (
     detect_delivery_type,
     extract_courier_comment,
     extract_promo_code,
+    extract_ym_client_id,
     extract_pvz_code,
     is_manual_prepayment,
     map_delivery_sd,
@@ -190,6 +191,26 @@ def test_promo_code(sample_order):
 
 def test_promo_code_empty():
     assert extract_promo_code({"coupon_codes": []}) is None
+
+
+# --- extract_ym_client_id ---
+
+def test_ym_client_id_present():
+    order = {"meta_data": [
+        {"key": "_some_other", "value": "x"},
+        {"key": "ym_client_id", "value": "1781443761947216235"},
+    ]}
+    # 19-значное число — строкой, без потери точности
+    assert extract_ym_client_id(order) == "1781443761947216235"
+
+def test_ym_client_id_missing_key():
+    assert extract_ym_client_id({"meta_data": [{"key": "other", "value": "1"}]}) is None
+
+def test_ym_client_id_empty_value():
+    assert extract_ym_client_id({"meta_data": [{"key": "ym_client_id", "value": ""}]}) is None
+
+def test_ym_client_id_no_meta_data():
+    assert extract_ym_client_id({}) is None
 
 
 # --- map_delivery_sd ---
