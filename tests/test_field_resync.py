@@ -41,13 +41,26 @@ def test_categorize_cod():
     assert categorize_payment("наложенный платёж") == "cod"
 
 def test_categorize_nalich_not_cod():
-    # «налич» намеренно НЕ считается COD
-    assert categorize_payment("Оплата наличными") is None
+    # «налич» — не COD, не карта → prepaid по умолчанию
+    assert categorize_payment("Оплата наличными") == "prepaid"
+    assert categorize_payment("Наличные менеджер") == "prepaid"
 
 def test_categorize_unknown_and_empty():
-    assert categorize_payment("Биткоин") is None
+    assert categorize_payment("Эвотор") == "prepaid"   # терминал — платная доставка
+    assert categorize_payment("Биткоин") == "prepaid"  # нераспознанная крипта — prepaid
     assert categorize_payment("") is None
     assert categorize_payment(None) is None
+
+def test_categorize_wallet_is_manual_prepaid():
+    assert categorize_payment("wallet") == "manual_prepaid"
+    assert categorize_payment("Wallet") == "manual_prepaid"
+
+def test_categorize_net_is_manual_prepaid():
+    assert categorize_payment("нет") == "manual_prepaid"
+
+def test_categorize_kripta_is_manual_prepaid():
+    assert categorize_payment("Крипта") == "manual_prepaid"
+    assert categorize_payment("криптовалюта") == "manual_prepaid"
 
 
 # --- compute_desired ---

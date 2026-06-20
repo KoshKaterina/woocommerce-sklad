@@ -32,26 +32,22 @@ log = get_logger(__name__)
 def categorize_payment(payment_str: str | None) -> str | None:
     """Категория оплаты из строки «Способ оплаты» (case-insensitive, с допуском опечаток).
 
-    'cod'            — при получении / наложенный (НЕ «налич»)
-    'manual_prepaid' — «на карту» / «банковский перевод»: предоплата + обнуление СДЭК
-                       (совпадает с WC is_manual_prepayment)
-    'prepaid'        — «онлайн» / «картой» (InSales): предоплата БЕЗ обнуления
-    None             — не распознано (поля оплаты не трогаем)
-
-    Важно: «на карт(у)» ≠ «картой». InSales шлёт «Оплата онлайн»/«Оплата картой»
-    (онлайн-предоплата, доставку НЕ обнуляем); промо «бесплатная СДЭК» — только для
-    WC-метода «На карту» и «Банковский перевод».
+    'cod'            — при получении / наложенный
+    'manual_prepaid' — «на карту» / «банковский перевод» / крипта / wallet / «нет»:
+                       предоплата + обнуление СДЭК (доставка бесплатная)
+    'prepaid'        — всё остальное (Эвотор, наличные, онлайн, картой, счёт и т.д.):
+                       предоплата БЕЗ обнуления доставки
+    None             — пустое значение / None
     """
     if not payment_str:
         return None
     s = payment_str.lower()
     if "получ" in s or "налож" in s:
         return "cod"
-    if "на карт" in s or "перевод" in s or "банк" in s:
+    if ("на карт" in s or "перевод" in s or "банк" in s
+            or "wallet" in s or "нет" in s or "крипт" in s):
         return "manual_prepaid"
-    if "онлайн" in s or "картой" in s:
-        return "prepaid"
-    return None
+    return "prepaid"
 
 
 def _is_cdek_service(name: str) -> bool:
@@ -184,9 +180,6 @@ class FieldResync:
 
         payment_str = self._attr_value(order, cfg.MS_ATTR_PAYMENT_METHOD_ID)
         category = categorize_payment(payment_str if isinstance(payment_str, str) else None)
-        if payment_str and category is None:
-            log.warning("Resync: не распознан способ оплаты — поля оплаты не трогаем",
-                        order=name, payment=payment_str)
 
         positions = self._fetch_positions(order_id)
         desired = compute_desired(positions, category, cfg)

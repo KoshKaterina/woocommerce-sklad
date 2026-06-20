@@ -144,7 +144,7 @@ def is_manual_prepayment(payment_method_title: str) -> bool:
     reconciliation и webhook mark_paid (ждём ручной отметки менеджера).
     """
     lower = payment_method_title.lower()
-    return "на карту" in lower or "банковский перевод" in lower
+    return "на карт" in lower or "банковский перевод" in lower
 
 
 def extract_courier_comment(order_data: dict) -> str | None:
