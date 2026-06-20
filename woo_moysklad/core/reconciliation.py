@@ -28,6 +28,7 @@ class Reconciliation:
         self.adapters = adapters
         self.field_resync = field_resync  # обратная синхронизация полей (опц., TODO §4)
         self._timer = None
+        self._schedule_lock = threading.Lock()  # гарантирует не более одного активного таймера
 
     def _find_order_in_ms(self, order_number: str) -> dict | None:
         """Найти заказ в МС по доп. полю 'Номер заказа на сайте'."""
@@ -100,7 +101,12 @@ class Reconciliation:
                 log.error("Сверка: необработанная ошибка resync", error=str(e))
 
     def schedule(self, interval_seconds: int = RECONCILIATION_INTERVAL):
-        """Запланировать периодическую сверку через threading.Timer."""
+        """Запланировать периодическую сверку через threading.Timer.
+
+        Защита от двойного запуска: отменяет предыдущий таймер перед созданием нового.
+        Если два timer-chain'а оказались живы (напр. после некорректного рестарта),
+        следующий вызов schedule() от любого из них схлопнет их в один.
+        """
         def _run_and_reschedule():
             try:
                 self.run()
@@ -108,13 +114,17 @@ class Reconciliation:
                 log.error("Сверка: необработанная ошибка", error=str(e))
             self.schedule(interval_seconds)
 
-        self._timer = threading.Timer(interval_seconds, _run_and_reschedule)
-        self._timer.daemon = True
-        self._timer.start()
+        with self._schedule_lock:
+            if self._timer is not None:
+                self._timer.cancel()
+            self._timer = threading.Timer(interval_seconds, _run_and_reschedule)
+            self._timer.daemon = True
+            self._timer.start()
         log.info("Сверка запланирована", interval_seconds=interval_seconds)
 
     def stop(self):
         """Остановить планировщик."""
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
+        with self._schedule_lock:
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None

@@ -6,6 +6,7 @@
   - Стоимость доставки     = Σ позиций-услуг (целые рубли)
   - Итого к оплате получателем = Σ всех позиций при COD, иначе 0
   - Прием платежа (1/2/3)  = из «Способ оплаты» (строка)
+  - Вид доставки (1/2/3)   = из имён услуг в позициях (ПВЗ/курьер/почтомат)
   - цена услуги доставки СДЭК → 0 при оплате «на карту»/«банковский перевод»
 
 Работает по ВСЕМ заказам МС, изменённым в окне, КРОМЕ канала «Маркетплейс»
@@ -14,12 +15,16 @@
 Безопасность:
   - пишем ТОЛЬКО изменившиеся поля (идемпотентно) → нет правок → нет записи →
     `updated` не дёргается → нет зацикливания;
-  - НЕ трогаем: контрагента, статус, адрес, вид доставки/СД, товары/услуги
+  - НЕ трогаем: контрагента, статус, адрес, «Доставка (СД)», товары/услуги
     (кроме обнуления цены услуги доставки СДЭК для карты/перевода);
   - если изменён только контрагент — пересчёт даёт те же значения → записи нет.
 """
+from datetime import timedelta, timezone
+
 from woo_moysklad.core.field_mappers import build_attribute
 from woo_moysklad.logger import get_logger
+
+_MSK = timezone(timedelta(hours=3))  # МойСклад интерпретирует даты фильтров как МСК
 
 log = get_logger(__name__)
 
@@ -103,8 +108,8 @@ class FieldResync:
 
     # ── чтение ──────────────────────────────────────────────
     def _fetch_orders(self, window_start, window_end) -> list:
-        start = window_start.strftime("%Y-%m-%d %H:%M:%S")
-        end = window_end.strftime("%Y-%m-%d %H:%M:%S")
+        start = window_start.astimezone(_MSK).strftime("%Y-%m-%d %H:%M:%S")
+        end = window_end.astimezone(_MSK).strftime("%Y-%m-%d %H:%M:%S")
         orders, offset = [], 0
         while True:
             resp = self.ms.get("entity/customerorder", params={
@@ -133,6 +138,26 @@ class FieldResync:
                 "quantity": p.get("quantity", 1),
             })
         return out
+
+    @staticmethod
+    def _detect_delivery_type_num(positions: list) -> int | None:
+        """Вид доставки из имён услуг (1=ПВЗ, 2=курьер, 3=почтомат).
+
+        СДЭК-самовывоз / ПВЗ → 1; курьер / Достависта → 2; постамат → 3.
+        Самовывоз без СДЭК (шоурум/склад) — не трогаем, возвращаем None.
+        """
+        for p in positions:
+            if p["type"] != "service":
+                continue
+            n = (p["name"] or "").lower()
+            if "постамат" in n:
+                return 3
+            is_cdek = "сдэк" in n or "cdek" in n
+            if "пвз" in n or ("самовывоз" in n and is_cdek):
+                return 1
+            if "курьер" in n or "достависта" in n:
+                return 2
+        return None
 
     def _is_marketplace(self, order: dict) -> bool:
         mp_id = self.config.MS_SALES_CHANNEL_MARKETPLACE_ID
@@ -182,6 +207,11 @@ class FieldResync:
         num_attr(cfg.MS_ATTR_DELIVERY_COST_ID, desired["delivery"], "Стоимость доставки")
         if desired["total_to_pay"] is not None:
             num_attr(cfg.MS_ATTR_TOTAL_TO_PAY_ID, desired["total_to_pay"], "Итого к оплате")
+
+        # Вид доставки (из имён услуг в позициях; не трогаем если не определить)
+        dt_num = self._detect_delivery_type_num(positions)
+        if dt_num is not None:
+            num_attr(cfg.MS_ATTR_DELIVERY_TYPE_ID, dt_num, "Вид доставки")
 
         # Прием платежа (customentity)
         if desired["payment_element"]:

@@ -13,6 +13,7 @@ class Cfg:
     MS_ATTR_DELIVERY_COST_ID = "a-del"
     MS_ATTR_TOTAL_TO_PAY_ID = "a-total"
     MS_ATTR_PAYMENT_TYPE_ID = "a-ptype"
+    MS_ATTR_DELIVERY_TYPE_ID = "a-dtype"
     MS_CUSTOMENTITY_PAYMENT_TYPE_ID = "dict-pt"
     MS_PAYMENT_TYPE_PREPAID_ID = "elem-1"
     MS_PAYMENT_TYPE_NONCASH_ID = "elem-2"
@@ -120,7 +121,7 @@ def _ms_positions():
     ]
 
 
-def _order(payment, est, dele, total, ptype_elem, channel=None):
+def _order(payment, est, dele, total, ptype_elem, channel=None, dtype=None):
     attrs = [
         {"id": "a-paymethod", "value": payment},
         {"id": "a-est", "value": est},
@@ -128,6 +129,8 @@ def _order(payment, est, dele, total, ptype_elem, channel=None):
         {"id": "a-total", "value": total},
         {"id": "a-ptype", "value": {"meta": {"href": f"/customentity/dict-pt/{ptype_elem}"}}},
     ]
+    if dtype is not None:
+        attrs.append({"id": "a-dtype", "value": dtype})
     o = {"id": "o1", "name": "00001", "attributes": attrs}
     if channel:
         o["salesChannel"] = {"meta": {"href": f"/entity/saleschannel/{channel}"}}
@@ -135,10 +138,10 @@ def _order(payment, est, dele, total, ptype_elem, channel=None):
 
 
 def test_resync_idempotent_no_writes():
-    # Заказ уже корректен (онлайн-предоплата) → ничего не пишем
+    # Заказ уже корректен (онлайн-предоплата + вид доставки ПВЗ) → ничего не пишем
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("Оплата онлайн", 7600, 799, 0, "elem-1")
+    order = _order("Оплата онлайн", 7600, 799, 0, "elem-1", dtype=1)
     assert rs.resync_order(order) is None
     assert ms.puts == []
 
@@ -157,10 +160,10 @@ def test_resync_card_zeroes_and_recomputes():
 
 
 def test_resync_insales_kartoy_not_zeroed():
-    # InSales «Оплата картой» + СДЭК: предоплата, но доставку НЕ обнуляем → нет записи
+    # InSales «Оплата картой» + СДЭК: предоплата, доставку НЕ обнуляем, dtype уже верный
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("Оплата картой", 7600, 799, 0, "elem-1")
+    order = _order("Оплата картой", 7600, 799, 0, "elem-1", dtype=1)
     assert rs.resync_order(order) is None
     assert ms.puts == []
 
@@ -174,9 +177,54 @@ def test_resync_marketplace_skipped():
 
 
 def test_resync_counterparty_only_no_change():
-    # «Изменён только контрагент»: поля уже корректны → пересчёт ничего не пишет
+    # «Изменён только контрагент»: все поля уже корректны → пересчёт ничего не пишет
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("При получении", 7600, 799, 8399, "elem-2")  # корректный COD
+    order = _order("При получении", 7600, 799, 8399, "elem-2", dtype=1)  # COD + ПВЗ
     assert rs.resync_order(order) is None
     assert ms.puts == []
+
+
+# --- _detect_delivery_type_num ---
+
+def test_detect_cdek_pvz():
+    positions = [
+        {"type": "goods", "name": "Tangem"},
+        {"type": "service", "name": "СДЭК: Самовывоз, (3-4 дней)"},
+    ]
+    assert FieldResync._detect_delivery_type_num(positions) == 1
+
+def test_detect_cdek_courier():
+    positions = [{"type": "service", "name": "СДЭК: Курьерская доставка"}]
+    assert FieldResync._detect_delivery_type_num(positions) == 2
+
+def test_detect_postamat():
+    positions = [{"type": "service", "name": "СДЭК: Постамат"}]
+    assert FieldResync._detect_delivery_type_num(positions) == 3
+
+def test_detect_dostavista():
+    positions = [{"type": "service", "name": "Достависта (стандартная)"}]
+    assert FieldResync._detect_delivery_type_num(positions) == 2
+
+def test_detect_showroom_not_pvz():
+    # «Самовывоз со склада» (InSales ExpressRMS) — не ПВЗ, возвращаем None
+    positions = [{"type": "service", "name": "Самовывоз со склада"}]
+    assert FieldResync._detect_delivery_type_num(positions) is None
+
+def test_detect_no_service():
+    positions = [{"type": "goods", "name": "Tangem"}]
+    assert FieldResync._detect_delivery_type_num(positions) is None
+
+
+# --- resync устанавливает Вид доставки для ручного заказа ---
+
+def test_resync_sets_delivery_type_for_manual_order():
+    # Менеджер создал заказ вручную: dtype не заполнен, resync должен поставить ПВЗ
+    ms = FakeMS(_ms_positions())
+    rs = FieldResync(Cfg, ms)
+    # Все поля уже верные, но dtype отсутствует (dtype=None → не в attrs)
+    order = _order("Оплата онлайн", 7600, 799, 0, "elem-1")  # без dtype
+    res = rs.resync_order(order)
+    assert res is not None
+    assert "Вид доставки" in res["plan"]
+    assert res["plan"]["Вид доставки"]["new"] == 1
