@@ -46,6 +46,9 @@ class Config:
     MS_CURRENCY_RUB_ID: str = ""
     MS_SALES_CHANNEL_ID: str = ""
     MS_STATE_NEW_LEAD_ID: str = ""
+    # Статус для заказов с самовывозом из офиса Sunscrypt (WC local_pickup / «showroom»).
+    # Если задан — такие заказы создаются в этом статусе вместо MS_STATE_NEW_LEAD_ID.
+    MS_STATE_SHOWROOM_PICKUP_ID: str = ""
 
     # UUID справочников (customentity)
     MS_CUSTOMENTITY_DELIVERY_SD_ID: str = ""

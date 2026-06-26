@@ -367,6 +367,9 @@ class OrderProcessor:
         # Организация: переопределение из заказа или дефолт
         org_id = order.organization_id or cfg.MS_ORGANIZATION_ID
         state_id = order.state_id or cfg.MS_STATE_NEW_LEAD_ID
+        # Самовывоз из офиса Sunscrypt (WC local_pickup) → отдельный статус «новый лид 1»
+        if order.delivery_sd_key == "showroom" and cfg.MS_STATE_SHOWROOM_PICKUP_ID:
+            state_id = cfg.MS_STATE_SHOWROOM_PICKUP_ID
 
         body = {
             "organization": self.ms.make_meta("organization", org_id),

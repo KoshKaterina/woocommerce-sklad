@@ -41,6 +41,7 @@ def make_config():
     cfg.MS_CURRENCY_RUB_ID = "rub-uuid"
     cfg.MS_SALES_CHANNEL_ID = "channel-uuid"
     cfg.MS_STATE_NEW_LEAD_ID = "state-uuid"
+    cfg.MS_STATE_SHOWROOM_PICKUP_ID = "state-showroom-pickup"
     cfg.MS_ATTR_ORDER_NUMBER_ID = "attr-order-num"
     cfg.MS_ATTR_PAYMENT_METHOD_ID = "attr-pay-method"
     cfg.MS_ATTR_PAYMENT_TYPE_ID = "attr-pay-type"
@@ -135,6 +136,30 @@ def test_ym_client_id_absent_when_no_meta(sample_order):
     processor.process_order(sample_order)
     attrs = ms.post.call_args[0][1]["attributes"]
     assert not [a for a in attrs if "attr-ym" in a["meta"]["href"]]
+
+
+def test_office_pickup_uses_showroom_state(sample_order):
+    """Самовывоз из офиса Sunscrypt (local_pickup) → статус «новый лид 1»."""
+    sample_order["shipping_lines"] = [
+        {"id": 1, "method_title": "Самовывоз из офиса", "method_id": "local_pickup",
+         "total": "0", "meta_data": []},
+    ]
+    processor, ms, cp, pm = make_processor()
+    processor.process_order(sample_order)
+
+    state_ids = [c.args[1] for c in ms.make_state_meta.call_args_list]
+    assert "state-showroom-pickup" in state_ids
+    assert "state-uuid" not in state_ids
+
+
+def test_non_pickup_uses_default_state(sample_order):
+    """Обычный заказ (не самовывоз) → дефолтный статус «Новый лид»."""
+    processor, ms, cp, pm = make_processor()
+    processor.process_order(sample_order)
+
+    state_ids = [c.args[1] for c in ms.make_state_meta.call_args_list]
+    assert "state-uuid" in state_ids
+    assert "state-showroom-pickup" not in state_ids
 
 
 def test_positions_passed_to_body(sample_order):
