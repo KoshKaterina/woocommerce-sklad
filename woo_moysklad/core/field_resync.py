@@ -55,6 +55,17 @@ def _is_cdek_service(name: str) -> bool:
     return "сдэк" in n or "cdek" in n
 
 
+def _line_kop(p: dict) -> int:
+    """Сумма позиции в копейках С УЧЁТОМ скидки (как «Сумма» в карточке МС).
+
+    В МС у позиции есть скидка в процентах (поле discount); «Сумма» = цена×кол-во×
+    (1 − скидка/100). Раньше скидку не учитывали → «Итого к оплате»/«Оценочная»
+    завышались на размер скидки.
+    """
+    disc = p.get("discount") or 0
+    return round(p["price"] * p["quantity"] * (100 - disc) / 100)
+
+
 def compute_desired(positions: list, category: str | None, cfg) -> dict:
     """Посчитать желаемые значения зависимых полей из позиций и категории оплаты.
 
@@ -69,7 +80,7 @@ def compute_desired(positions: list, category: str | None, cfg) -> dict:
     zero_ids = []
 
     for p in positions:
-        line = p["price"] * p["quantity"]
+        line = _line_kop(p)
         if p["type"] == "service":
             if is_manual_prepaid and _is_cdek_service(p["name"]) and p["price"] != 0:
                 zero_ids.append(p["id"])  # обнуляем СДЭК-доставку, в сумму не идёт
@@ -132,6 +143,7 @@ class FieldResync:
                 "name": assortment.get("name", ""),
                 "price": p.get("price", 0),
                 "quantity": p.get("quantity", 1),
+                "discount": p.get("discount", 0),
             })
         return out
 

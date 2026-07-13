@@ -285,13 +285,18 @@ class OrderProcessor:
             total_to_pay = order.total_to_pay or "0"
             return estimated_cost, delivery_cost, total_to_pay
 
-        # Fallback: расчёт из позиций (как в WC)
+        # Fallback: расчёт из позиций (как в WC). Учитываем скидку позиции
+        # (discount, %): «Сумма» = цена×кол-во×(1 − скидка/100).
+        def _line(p):
+            disc = p.get("discount") or 0
+            return round(p["price"] * p["quantity"] * (100 - disc) / 100)
+
         products_total = sum(
-            p["price"] * p["quantity"] for p in positions
+            _line(p) for p in positions
             if p["assortment"].get("meta", {}).get("type") == "product"
         )
         services_total = sum(
-            p["price"] * p["quantity"] for p in positions
+            _line(p) for p in positions
             if p["assortment"].get("meta", {}).get("type") == "service"
         )
         all_total = products_total + services_total

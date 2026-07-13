@@ -103,6 +103,18 @@ def test_desired_prepaid_no_zeroing():
     assert d["payment_element"] == "elem-1"
 
 
+def test_desired_cod_with_discount():
+    # Позиция со скидкой 10% (как «Скидка» в карточке МС) — суммы считаем ПО скидке
+    goods_disc = {"id": "p1", "type": "goods", "name": "Tangem",
+                  "price": 699000, "quantity": 1, "discount": 10}
+    cdek = {"id": "p2", "type": "service", "name": "CDEK: Самовывоз",
+            "price": 33200, "quantity": 1, "discount": 0}
+    d = compute_desired([goods_disc, cdek], "cod", Cfg)
+    assert d["estimated"] == 6291               # 6990 − 10%
+    assert d["delivery"] == 332
+    assert d["total_to_pay"] == 6623            # 6291 + 332
+
+
 def test_desired_unknown_leaves_payment_fields():
     d = compute_desired([GOODS, CDEK], None, Cfg)
     assert d["estimated"] == 7600 and d["delivery"] == 799   # позиционные считаем
