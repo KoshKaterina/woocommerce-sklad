@@ -28,11 +28,16 @@ class WooCommerceClient:
 
     def get_orders(self, after: str | None = None, before: str | None = None,
                    modified_after: str | None = None, modified_before: str | None = None,
-                   per_page: int = 100) -> list[dict]:
+                   per_page: int = 100, dates_are_gmt: bool = False) -> list[dict]:
         """Получить список заказов с пагинацией.
 
         after/before — фильтр по date_created (ISO 8601).
         modified_after/modified_before — фильтр по date_modified (ISO 8601).
+
+        dates_are_gmt=True — даты переданы в UTC. Без этого флага WooCommerce
+        читает их как время сайта (МСК), и окно уезжает на 3 часа: сверка
+        смотрела в прошлое и не добирала свежие заказы (инцидент 29.07.2026,
+        заказ #18145 после 500-х от МС остался незамеченным).
         """
         all_orders = []
         page = 1
@@ -47,6 +52,8 @@ class WooCommerceClient:
                 params["modified_after"] = modified_after
             if modified_before:
                 params["modified_before"] = modified_before
+            if dates_are_gmt and (after or before or modified_after or modified_before):
+                params["dates_are_gmt"] = "true"
 
             response = self.wcapi.get("orders", params=params)
             response.raise_for_status()

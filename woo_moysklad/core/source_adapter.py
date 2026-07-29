@@ -58,9 +58,12 @@ class WooSourceAdapter(SourceAdapter):
 
     def fetch_modified_in_window(self, window_start: datetime,
                                  window_end: datetime) -> list[dict]:
+        # Окно приходит в UTC (reconciliation.run), поэтому dates_are_gmt=True:
+        # иначе WooCommerce прочитает даты как время сайта (МСК) и окно уедет на 3 часа.
         return self.woo.get_orders(
             modified_after=window_start.isoformat(),
             modified_before=window_end.isoformat(),
+            dates_are_gmt=True,
         )
 
     def order_id(self, raw_order: dict) -> str:
