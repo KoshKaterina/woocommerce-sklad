@@ -1,27 +1,25 @@
-"""Обратная синхронизация доп. полей заказа покупателя (TODO §4).
+"""Обратная синхронизация заказа покупателя (TODO §4).
 
 Когда менеджер вручную правит заказ в МС (позиции и/или «Способ оплаты»),
-пересчитываем зависимые доп. поля по тем же правилам, что и при создании:
-  - Оценочная стоимость   = Σ товарных позиций (целые рубли)
-  - Стоимость доставки     = Σ позиций-услуг (целые рубли)
-  - Итого к оплате получателем = Σ всех позиций при COD, иначе 0
-  - Прием платежа (1/2/3)  = из «Способ оплаты» (строка)
-  - Вид доставки (1/2/3)   = из имён услуг в позициях (ПВЗ/курьер/почтомат)
+приводим заказ в порядок по тем же правилам, что и при создании:
   - цена услуги доставки СДЭК → 0 при оплате «на карту»/«банковский перевод»
+
+⚠️ 05.08.2026 отсюда убран пересчёт доп. полей «Оценочная стоимость»,
+«Стоимость доставки», «Итого к оплате получателем», «Прием платежа» и «Вид
+доставки»: поля заводились под фулфилмент (ЭРМС, май-июнь 2026), дублировали
+суммы заказа и никем не читались. Решение Кати 05.08.2026, поля удалены из МС.
 
 Работает по ВСЕМ заказам МС, изменённым в окне, КРОМЕ канала «Маркетплейс»
 (в т.ч. по созданным менеджером вручную — у них нет «Номера заказа на сайте»).
 
 Безопасность:
-  - пишем ТОЛЬКО изменившиеся поля (идемпотентно) → нет правок → нет записи →
+  - пишем ТОЛЬКО изменившееся (идемпотентно) → нет правок → нет записи →
     `updated` не дёргается → нет зацикливания;
   - НЕ трогаем: контрагента, статус, адрес, «Доставка (СД)», товары/услуги
-    (кроме обнуления цены услуги доставки СДЭК для карты/перевода);
-  - если изменён только контрагент — пересчёт даёт те же значения → записи нет.
+    (кроме обнуления цены услуги доставки СДЭК для карты/перевода).
 """
 from datetime import timedelta, timezone
 
-from woo_moysklad.core.field_mappers import build_attribute
 from woo_moysklad.logger import get_logger
 
 _MSK = timezone(timedelta(hours=3))  # МойСклад интерпретирует даты фильтров как МСК
@@ -55,55 +53,23 @@ def _is_cdek_service(name: str) -> bool:
     return "сдэк" in n or "cdek" in n
 
 
-def _line_kop(p: dict) -> int:
-    """Сумма позиции в копейках С УЧЁТОМ скидки (как «Сумма» в карточке МС).
-
-    В МС у позиции есть скидка в процентах (поле discount); «Сумма» = цена×кол-во×
-    (1 − скидка/100). Раньше скидку не учитывали → «Итого к оплате»/«Оценочная»
-    завышались на размер скидки.
-    """
-    disc = p.get("discount") or 0
-    return round(p["price"] * p["quantity"] * (100 - disc) / 100)
-
-
-def compute_desired(positions: list, category: str | None, cfg) -> dict:
-    """Посчитать желаемые значения зависимых полей из позиций и категории оплаты.
+def compute_desired(positions: list, category: str | None, cfg=None) -> dict:
+    """Что нужно поправить в заказе, исходя из позиций и категории оплаты.
 
     positions: [{id, type ('service'/прочее=товар), name, price(коп), quantity}]
-    Возвращает dict: estimated, delivery, total_to_pay (None=не трогать),
-    payment_element (None=не трогать), zero_position_ids (СДЭК-услуги к обнулению).
+    Возвращает dict: zero_position_ids — СДЭК-услуги, цену которых надо обнулить
+    (оплата «на карту» / банковским переводом = доставка за наш счёт).
     """
     is_manual_prepaid = category == "manual_prepaid"
 
-    goods_kop = 0
-    services_kop = 0
     zero_ids = []
-
     for p in positions:
-        line = _line_kop(p)
-        if p["type"] == "service":
-            if is_manual_prepaid and _is_cdek_service(p["name"]) and p["price"] != 0:
-                zero_ids.append(p["id"])  # обнуляем СДЭК-доставку, в сумму не идёт
-            else:
-                services_kop += line
-        else:
-            goods_kop += line
+        if p["type"] != "service":
+            continue
+        if is_manual_prepaid and _is_cdek_service(p["name"]) and p["price"] != 0:
+            zero_ids.append(p["id"])
 
-    all_kop = goods_kop + services_kop
-    desired = {
-        "estimated": goods_kop // 100,
-        "delivery": services_kop // 100,
-        "zero_position_ids": zero_ids,
-        "total_to_pay": None,
-        "payment_element": None,
-    }
-    if category == "cod":
-        desired["total_to_pay"] = all_kop // 100
-        desired["payment_element"] = cfg.MS_PAYMENT_TYPE_NONCASH_ID
-    elif category in ("manual_prepaid", "prepaid"):
-        desired["total_to_pay"] = 0
-        desired["payment_element"] = cfg.MS_PAYMENT_TYPE_PREPAID_ID
-    return desired
+    return {"zero_position_ids": zero_ids}
 
 
 class FieldResync:
@@ -147,26 +113,6 @@ class FieldResync:
             })
         return out
 
-    @staticmethod
-    def _detect_delivery_type_num(positions: list) -> int | None:
-        """Вид доставки из имён услуг (1=ПВЗ, 2=курьер, 3=почтомат).
-
-        СДЭК-самовывоз / ПВЗ → 1; курьер / Достависта → 2; постамат → 3.
-        Самовывоз без СДЭК (шоурум/склад) — не трогаем, возвращаем None.
-        """
-        for p in positions:
-            if p["type"] != "service":
-                continue
-            n = (p["name"] or "").lower()
-            if "постамат" in n:
-                return 3
-            is_cdek = "сдэк" in n or "cdek" in n
-            if "пвз" in n or ("самовывоз" in n and is_cdek):
-                return 1
-            if "курьер" in n or "достависта" in n:
-                return 2
-        return None
-
     def _is_marketplace(self, order: dict) -> bool:
         mp_id = self.config.MS_SALES_CHANNEL_MARKETPLACE_ID
         if not mp_id:
@@ -196,59 +142,20 @@ class FieldResync:
         positions = self._fetch_positions(order_id)
         desired = compute_desired(positions, category, cfg)
 
-        # --- сборка диффа атрибутов ---
-        attr_patch = []
         plan = {}
-
-        def num_attr(attr_id, value, key):
-            cur = self._attr_value(order, attr_id)
-            if cur is None or float(cur) != float(value):
-                a = build_attribute(attr_id, value)
-                if a:
-                    attr_patch.append(a)
-                    plan[key] = {"old": cur, "new": value}
-
-        num_attr(cfg.MS_ATTR_ESTIMATED_COST_ID, desired["estimated"], "Оценочная стоимость")
-        num_attr(cfg.MS_ATTR_DELIVERY_COST_ID, desired["delivery"], "Стоимость доставки")
-        if desired["total_to_pay"] is not None:
-            num_attr(cfg.MS_ATTR_TOTAL_TO_PAY_ID, desired["total_to_pay"], "Итого к оплате")
-
-        # Вид доставки (из имён услуг в позициях; не трогаем если не определить)
-        dt_num = self._detect_delivery_type_num(positions)
-        if dt_num is not None:
-            num_attr(cfg.MS_ATTR_DELIVERY_TYPE_ID, dt_num, "Вид доставки")
-
-        # Прием платежа (customentity)
-        if desired["payment_element"]:
-            cur = self._attr_value(order, cfg.MS_ATTR_PAYMENT_TYPE_ID)
-            cur_elem = (cur.get("meta", {}).get("href", "").rstrip("/").split("/")[-1]
-                        if isinstance(cur, dict) else None)
-            if cur_elem != desired["payment_element"]:
-                a = build_attribute(
-                    cfg.MS_ATTR_PAYMENT_TYPE_ID, "x", is_custom_entity=True,
-                    dictionary_id=cfg.MS_CUSTOMENTITY_PAYMENT_TYPE_ID,
-                    element_id=desired["payment_element"],
-                )
-                if a:
-                    attr_patch.append(a)
-                    plan["Прием платежа"] = {"old": cur_elem, "new": desired["payment_element"]}
-
         zero_ids = desired["zero_position_ids"]
         if zero_ids:
             plan["Обнулить СДЭК-доставку"] = {"positions": zero_ids}
 
-        if not attr_patch and not zero_ids:
+        if not zero_ids:
             return None
 
         if dry_run:
             return {"order": name, "id": order_id, "plan": plan}
 
-        # --- запись: сначала позиции (только цена), потом атрибуты ---
         for pos_id in zero_ids:
             self.ms.put(f"entity/customerorder/{order_id}/positions/{pos_id}", {"price": 0})
-        if attr_patch:
-            self.ms.put(f"entity/customerorder/{order_id}", {"attributes": attr_patch})
-        log.info("Resync: поля пересчитаны", order=name, fields=list(plan.keys()))
+        log.info("Resync: заказ поправлен", order=name, fields=list(plan.keys()))
         return {"order": name, "id": order_id, "plan": plan}
 
     # ── проход по окну ──────────────────────────────────────

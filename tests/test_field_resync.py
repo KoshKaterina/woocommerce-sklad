@@ -1,4 +1,9 @@
-"""Тесты обратной синхронизации полей (FieldResync, TODO §4)."""
+"""Тесты обратной синхронизации заказа (FieldResync, TODO §4).
+
+05.08.2026: пересчёт доп. полей «Оценочная стоимость», «Стоимость доставки»,
+«Итого к оплате получателем», «Прием платежа» и «Вид доставки» убран вместе с
+самими полями (наследие фулфилмента). Осталось обнуление цены СДЭК-доставки.
+"""
 
 from woo_moysklad.core.field_resync import (
     FieldResync,
@@ -9,14 +14,6 @@ from woo_moysklad.core.field_resync import (
 
 class Cfg:
     MS_ATTR_PAYMENT_METHOD_ID = "a-paymethod"
-    MS_ATTR_ESTIMATED_COST_ID = "a-est"
-    MS_ATTR_DELIVERY_COST_ID = "a-del"
-    MS_ATTR_TOTAL_TO_PAY_ID = "a-total"
-    MS_ATTR_PAYMENT_TYPE_ID = "a-ptype"
-    MS_ATTR_DELIVERY_TYPE_ID = "a-dtype"
-    MS_CUSTOMENTITY_PAYMENT_TYPE_ID = "dict-pt"
-    MS_PAYMENT_TYPE_PREPAID_ID = "elem-1"
-    MS_PAYMENT_TYPE_NONCASH_ID = "elem-2"
     MS_SALES_CHANNEL_MARKETPLACE_ID = "mp-1"
 
 
@@ -63,63 +60,41 @@ def test_categorize_kripta_is_manual_prepaid():
     assert categorize_payment("криптовалюта") == "manual_prepaid"
 
 
-# --- compute_desired ---
+# --- compute_desired: осталось только обнуление СДЭК ---
 
 GOODS = {"id": "p1", "type": "goods", "name": "Tangem", "price": 760000, "quantity": 1}
 CDEK = {"id": "p2", "type": "service", "name": "CDEK: Самовывоз", "price": 79900, "quantity": 1}
 COURIER = {"id": "p3", "type": "service", "name": "Курьер по Москве", "price": 50000, "quantity": 1}
 
 
-def test_desired_cod():
-    d = compute_desired([GOODS, CDEK], "cod", Cfg)
-    assert d["estimated"] == 7600
-    assert d["delivery"] == 799
-    assert d["total_to_pay"] == 8399          # всё включая доставку
-    assert d["payment_element"] == "elem-2"   # noncash
-    assert d["zero_position_ids"] == []
-
-
 def test_desired_manual_prepaid_zeroes_cdek():
     d = compute_desired([GOODS, CDEK], "manual_prepaid", Cfg)
     assert d["zero_position_ids"] == ["p2"]   # СДЭК обнуляется (на карту/перевод)
-    assert d["delivery"] == 0
-    assert d["total_to_pay"] == 0             # предоплата
-    assert d["payment_element"] == "elem-1"   # prepaid
 
 
 def test_desired_manual_prepaid_does_not_zero_non_cdek():
     d = compute_desired([GOODS, COURIER], "manual_prepaid", Cfg)
     assert d["zero_position_ids"] == []       # курьер не обнуляем
-    assert d["delivery"] == 500
-    assert d["total_to_pay"] == 0
 
 
 def test_desired_prepaid_no_zeroing():
     # InSales «онлайн»/«картой» → предоплата, доставка НЕ обнуляется
-    d = compute_desired([GOODS, CDEK], "prepaid", Cfg)
-    assert d["zero_position_ids"] == []
-    assert d["delivery"] == 799
-    assert d["total_to_pay"] == 0
-    assert d["payment_element"] == "elem-1"
+    assert compute_desired([GOODS, CDEK], "prepaid", Cfg)["zero_position_ids"] == []
 
 
-def test_desired_cod_with_discount():
-    # Позиция со скидкой 10% (как «Скидка» в карточке МС) — суммы считаем ПО скидке
-    goods_disc = {"id": "p1", "type": "goods", "name": "Tangem",
-                  "price": 699000, "quantity": 1, "discount": 10}
-    cdek = {"id": "p2", "type": "service", "name": "CDEK: Самовывоз",
-            "price": 33200, "quantity": 1, "discount": 0}
-    d = compute_desired([goods_disc, cdek], "cod", Cfg)
-    assert d["estimated"] == 6291               # 6990 − 10%
-    assert d["delivery"] == 332
-    assert d["total_to_pay"] == 6623            # 6291 + 332
+def test_desired_cod_no_zeroing():
+    assert compute_desired([GOODS, CDEK], "cod", Cfg)["zero_position_ids"] == []
 
 
-def test_desired_unknown_leaves_payment_fields():
-    d = compute_desired([GOODS, CDEK], None, Cfg)
-    assert d["estimated"] == 7600 and d["delivery"] == 799   # позиционные считаем
-    assert d["total_to_pay"] is None                         # оплату не трогаем
-    assert d["payment_element"] is None
+def test_desired_unknown_payment_no_zeroing():
+    assert compute_desired([GOODS, CDEK], None, Cfg)["zero_position_ids"] == []
+
+
+def test_desired_zero_priced_cdek_not_touched():
+    # Доставка уже бесплатная — второй раз не обнуляем (иначе лишняя запись в МС)
+    free_cdek = {"id": "p2", "type": "service", "name": "CDEK: Самовывоз",
+                 "price": 0, "quantity": 1}
+    assert compute_desired([GOODS, free_cdek], "manual_prepaid", Cfg)["zero_position_ids"] == []
 
 
 # --- FieldResync.resync_order ---
@@ -146,110 +121,49 @@ def _ms_positions():
     ]
 
 
-def _order(payment, est, dele, total, ptype_elem, channel=None, dtype=None):
-    attrs = [
-        {"id": "a-paymethod", "value": payment},
-        {"id": "a-est", "value": est},
-        {"id": "a-del", "value": dele},
-        {"id": "a-total", "value": total},
-        {"id": "a-ptype", "value": {"meta": {"href": f"/customentity/dict-pt/{ptype_elem}"}}},
-    ]
-    if dtype is not None:
-        attrs.append({"id": "a-dtype", "value": dtype})
-    o = {"id": "o1", "name": "00001", "attributes": attrs}
+def _order(payment, channel=None):
+    o = {"id": "o1", "name": "00001",
+         "attributes": [{"id": "a-paymethod", "value": payment}]}
     if channel:
         o["salesChannel"] = {"meta": {"href": f"/entity/saleschannel/{channel}"}}
     return o
 
 
-def test_resync_idempotent_no_writes():
-    # Заказ уже корректен (онлайн-предоплата + вид доставки ПВЗ) → ничего не пишем
+def test_resync_card_zeroes_cdek():
+    # Менеджер сменил оплату на «На карту» → обнуляем цену СДЭК-доставки
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("Оплата онлайн", 7600, 799, 0, "elem-1", dtype=1)
-    assert rs.resync_order(order) is None
+    res = rs.resync_order(_order("На карту"))
+    assert res is not None
+    assert [p[0] for p in ms.puts] == ["entity/customerorder/o1/positions/p2"]
+    assert ms.puts[0][1] == {"price": 0}
+    assert "Обнулить СДЭК-доставку" in res["plan"]
+
+
+def test_resync_online_payment_no_writes():
+    # Онлайн-оплата: доставка платная, трогать нечего
+    ms = FakeMS(_ms_positions())
+    rs = FieldResync(Cfg, ms)
+    assert rs.resync_order(_order("Оплата онлайн")) is None
     assert ms.puts == []
 
 
-def test_resync_card_zeroes_and_recomputes():
-    # Менеджер сменил оплату на «На карту» → обнулить СДЭК + Стоимость доставки=0
+def test_resync_cod_no_writes():
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("На карту", 7600, 799, 0, "elem-1")  # был онлайн (elem-1), доставка 799
-    res = rs.resync_order(order)
-    assert res is not None
-    paths = [p[0] for p in ms.puts]
-    assert "entity/customerorder/o1/positions/p2" in paths   # обнулили СДЭК
-    assert "entity/customerorder/o1" in paths                # обновили атрибуты
-    assert "Стоимость доставки" in res["plan"]
-
-
-def test_resync_insales_kartoy_not_zeroed():
-    # InSales «Оплата картой» + СДЭК: предоплата, доставку НЕ обнуляем, dtype уже верный
-    ms = FakeMS(_ms_positions())
-    rs = FieldResync(Cfg, ms)
-    order = _order("Оплата картой", 7600, 799, 0, "elem-1", dtype=1)
-    assert rs.resync_order(order) is None
+    assert rs.resync_order(_order("При получении")) is None
     assert ms.puts == []
 
 
 def test_resync_marketplace_skipped():
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("На карту", 0, 0, 0, "elem-2", channel="mp-1")
-    assert rs.resync_order(order) is None
+    assert rs.resync_order(_order("На карту", channel="mp-1")) is None
     assert ms.puts == []
 
 
-def test_resync_counterparty_only_no_change():
-    # «Изменён только контрагент»: все поля уже корректны → пересчёт ничего не пишет
+def test_resync_dry_run_writes_nothing():
     ms = FakeMS(_ms_positions())
     rs = FieldResync(Cfg, ms)
-    order = _order("При получении", 7600, 799, 8399, "elem-2", dtype=1)  # COD + ПВЗ
-    assert rs.resync_order(order) is None
-    assert ms.puts == []
-
-
-# --- _detect_delivery_type_num ---
-
-def test_detect_cdek_pvz():
-    positions = [
-        {"type": "goods", "name": "Tangem"},
-        {"type": "service", "name": "СДЭК: Самовывоз, (3-4 дней)"},
-    ]
-    assert FieldResync._detect_delivery_type_num(positions) == 1
-
-def test_detect_cdek_courier():
-    positions = [{"type": "service", "name": "СДЭК: Курьерская доставка"}]
-    assert FieldResync._detect_delivery_type_num(positions) == 2
-
-def test_detect_postamat():
-    positions = [{"type": "service", "name": "СДЭК: Постамат"}]
-    assert FieldResync._detect_delivery_type_num(positions) == 3
-
-def test_detect_dostavista():
-    positions = [{"type": "service", "name": "Достависта (стандартная)"}]
-    assert FieldResync._detect_delivery_type_num(positions) == 2
-
-def test_detect_showroom_not_pvz():
-    # «Самовывоз со склада» (InSales ExpressRMS) — не ПВЗ, возвращаем None
-    positions = [{"type": "service", "name": "Самовывоз со склада"}]
-    assert FieldResync._detect_delivery_type_num(positions) is None
-
-def test_detect_no_service():
-    positions = [{"type": "goods", "name": "Tangem"}]
-    assert FieldResync._detect_delivery_type_num(positions) is None
-
-
-# --- resync устанавливает Вид доставки для ручного заказа ---
-
-def test_resync_sets_delivery_type_for_manual_order():
-    # Менеджер создал заказ вручную: dtype не заполнен, resync должен поставить ПВЗ
-    ms = FakeMS(_ms_positions())
-    rs = FieldResync(Cfg, ms)
-    # Все поля уже верные, но dtype отсутствует (dtype=None → не в attrs)
-    order = _order("Оплата онлайн", 7600, 799, 0, "elem-1")  # без dtype
-    res = rs.resync_order(order)
-    assert res is not None
-    assert "Вид доставки" in res["plan"]
-    assert res["plan"]["Вид доставки"]["new"] == 1
+    res = rs.resync_order(_order("На карту"), dry_run=True)
+    assert res is not None and ms.puts == []

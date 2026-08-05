@@ -14,10 +14,7 @@ log = get_logger(__name__)
 # править прод-.env при деплое и чтобы старые значения в .env их не перебивали.
 # Секреты (токены, INSALES_API_KEY/PASSWORD) сюда НЕ входят — они только из .env.
 _HARDCODED_DEFAULTS = frozenset({
-    "MS_ATTR_DELIVERY_TYPE_ID", "MS_ATTR_DELIVERY_COST_ID", "MS_ATTR_ESTIMATED_COST_ID",
-    "MS_ATTR_TOTAL_TO_PAY_ID", "MS_ATTR_PAYMENT_TYPE_ID", "MS_ATTR_COURIER_COMMENT_ID",
-    "MS_ATTR_YM_CLIENT_ID",
-    "MS_CUSTOMENTITY_PAYMENT_TYPE_ID", "MS_PAYMENT_TYPE_PREPAID_ID", "MS_PAYMENT_TYPE_NONCASH_ID",
+    "MS_ATTR_COURIER_COMMENT_ID", "MS_ATTR_YM_CLIENT_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "MS_DELIVERY_SD_DOSTAVISTA_ID", "MS_DELIVERY_SD_SHOWROOM_ID",
     "MS_DELIVERY_SD_RMS_PICKUP_ID",
@@ -52,8 +49,6 @@ class Config:
 
     # UUID справочников (customentity)
     MS_CUSTOMENTITY_DELIVERY_SD_ID: str = ""
-    MS_CUSTOMENTITY_PAYMENT_TYPE_ID: str = "00a648ac-60ac-11f1-0a80-1cc60006b0c8"  # захардкожено
-    # Примечание: «Вид доставки» с 2026-06 — поле типа long (0-5), не справочник
 
     # UUID доп. полей заказа покупателя — из .env (зависят от аккаунта, не менялись):
     MS_ATTR_ORDER_NUMBER_ID: str = ""
@@ -61,12 +56,10 @@ class Config:
     MS_ATTR_PROMO_CODE_ID: str = ""
     MS_ATTR_DELIVERY_SD_ID: str = ""
     MS_ATTR_PVZ_CODE_ID: str = ""
-    # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS):
-    MS_ATTR_DELIVERY_TYPE_ID: str = "8c337f77-5d2b-11f1-0a80-1cae0026fe2e"
-    MS_ATTR_DELIVERY_COST_ID: str = "6197cf57-5d04-11f1-0a80-0e1800256067"
-    MS_ATTR_ESTIMATED_COST_ID: str = "6197d336-5d04-11f1-0a80-0e1800256068"
-    MS_ATTR_TOTAL_TO_PAY_ID: str = "80814b14-5d04-11f1-0a80-1d5a00242f6e"
-    MS_ATTR_PAYMENT_TYPE_ID: str = "574102c9-60ac-11f1-0a80-0e5500051d84"
+    # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS).
+    # ⚠️ 05.08.2026 удалены поля фулфилмента: «Вид доставки», «Стоимость доставки»,
+    # «Оценочная стоимость», «Итого к оплате получателем», «Прием платежа» — вместе
+    # с их UUID и константами справочника приёма платежа.
     # «Комментарий курьеру» — НЕ заполняется интеграцией (менеджер пишет вручную).
     # Комментарий покупателя идёт только в нативное поле «Комментарий» (description).
     MS_ATTR_COURIER_COMMENT_ID: str = "ed537fe2-5d04-11f1-0a80-0e18002576eb"
@@ -74,10 +67,6 @@ class Config:
     # сквозная аналитика МС → amoCRM → Метрика. Тип поля — string (19-значное число
     # пишем строкой, без потери точности). Захардкожено (поле создано 2026-06).
     MS_ATTR_YM_CLIENT_ID: str = "26b2eac0-6806-11f1-0a80-045b00304eed"
-
-    # UUID элементов справочника "Прием платежа" — захардкожено
-    MS_PAYMENT_TYPE_PREPAID_ID: str = "0db95b3b-60ac-11f1-0a80-1b9f0005d237"   # "1"
-    MS_PAYMENT_TYPE_NONCASH_ID: str = "16bb90ce-60ac-11f1-0a80-11190005b58b"   # "2"
 
     # UUID элементов справочника "Доставка (СД)".
     # Интеграция ставит автоматически ТОЛЬКО эти значения (WC: СДЭК / Достависта /

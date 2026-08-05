@@ -214,21 +214,6 @@ class OrderProcessor:
         }
         return mapping.get(key)
 
-    def _resolve_delivery_type_num(self, key: str) -> int | None:
-        """Вид доставки → числовой код нового поля (long).
-
-        Справочник МС: 0 склад / 1 ПВЗ / 2 курьер / 3 почтомат / 4 почта / 5 экспорт.
-        Интеграция выставляет только pvz / courier / postamat.
-        """
-        return {"pvz": 1, "courier": 2, "postamat": 3}.get(key)
-
-    def _resolve_payment_type_id(self, key: str) -> str | None:
-        mapping = {
-            "prepaid": self.config.MS_PAYMENT_TYPE_PREPAID_ID,
-            "noncash": self.config.MS_PAYMENT_TYPE_NONCASH_ID,
-        }
-        return mapping.get(key)
-
     def _create_single_order(self, *, spec: dict, agent_meta: dict,
                              order: NormalizedOrder) -> dict | None:
         """Создать один заказ в МС (никогда не обновляет существующие)."""
@@ -242,16 +227,9 @@ class OrderProcessor:
                      order_number=order_number, ms_name=existing.get("name"))
             return existing
 
-        # Расчёт стоимостей
-        estimated_cost, delivery_cost, total_to_pay = self._calc_costs_from_normalized(
-            positions, order)
-
         # Доп. поля
         attributes = self._build_attributes_from_normalized(
             order_number=order_number,
-            estimated_cost=estimated_cost,
-            delivery_cost=delivery_cost,
-            total_to_pay=total_to_pay,
             order=order,
         )
 
@@ -275,40 +253,7 @@ class OrderProcessor:
             raise OrderProcessingError(
                 f"Ошибка МС при создании заказа #{order_number}: {e}") from e
 
-    def _calc_costs_from_normalized(self, positions: list,
-                                    order: NormalizedOrder) -> tuple[str, str, str]:
-        """Расчёт стоимостей из позиций и NormalizedOrder."""
-        # Если нормализатор уже вычислил значения — используем их
-        if order.estimated_cost and order.delivery_cost_attr_value:
-            estimated_cost = order.estimated_cost
-            delivery_cost = order.delivery_cost_attr_value
-            total_to_pay = order.total_to_pay or "0"
-            return estimated_cost, delivery_cost, total_to_pay
-
-        # Fallback: расчёт из позиций (как в WC). Учитываем скидку позиции
-        # (discount, %): «Сумма» = цена×кол-во×(1 − скидка/100).
-        def _line(p):
-            disc = p.get("discount") or 0
-            return round(p["price"] * p["quantity"] * (100 - disc) / 100)
-
-        products_total = sum(
-            _line(p) for p in positions
-            if p["assortment"].get("meta", {}).get("type") == "product"
-        )
-        services_total = sum(
-            _line(p) for p in positions
-            if p["assortment"].get("meta", {}).get("type") == "service"
-        )
-        all_total = products_total + services_total
-
-        estimated_cost = str(products_total // 100)
-        delivery_cost = str(services_total // 100)
-        total_to_pay = str(all_total // 100) if order.is_cod else "0"
-
-        return estimated_cost, delivery_cost, total_to_pay
-
-    def _build_attributes_from_normalized(self, *, order_number, estimated_cost,
-                                          delivery_cost, total_to_pay,
+    def _build_attributes_from_normalized(self, *, order_number,
                                           order: NormalizedOrder) -> list:
         """Собрать список доп. полей из NormalizedOrder."""
         attributes = []
@@ -317,19 +262,6 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_ORDER_NUMBER_ID, order_number)
         self._add_attr(attributes, cfg.MS_ATTR_PAYMENT_METHOD_ID,
                        order.payment_title if order.payment_title else None)
-
-        # Приём платежа (customentity)
-        if order.payment_type_key:
-            pt_element_id = self._resolve_payment_type_id(order.payment_type_key)
-            if pt_element_id:
-                attr = build_attribute(
-                    cfg.MS_ATTR_PAYMENT_TYPE_ID, "custom",
-                    is_custom_entity=True,
-                    dictionary_id=cfg.MS_CUSTOMENTITY_PAYMENT_TYPE_ID,
-                    element_id=pt_element_id,
-                )
-                if attr:
-                    attributes.append(attr)
 
         # Доставка СД (customentity)
         if order.delivery_sd_key:
@@ -344,17 +276,7 @@ class OrderProcessor:
                 if attr:
                     attributes.append(attr)
 
-        # Вид доставки (long: 1=ПВЗ, 2=курьер, 3=почтомат)
-        if order.delivery_type_key:
-            dt_num = self._resolve_delivery_type_num(order.delivery_type_key)
-            if dt_num is not None:
-                self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_TYPE_ID, dt_num)
-
         self._add_attr(attributes, cfg.MS_ATTR_PVZ_CODE_ID, order.pvz_code)
-        # Стоимости — поля double, передаём числом
-        self._add_attr(attributes, cfg.MS_ATTR_DELIVERY_COST_ID, _to_number(delivery_cost))
-        self._add_attr(attributes, cfg.MS_ATTR_ESTIMATED_COST_ID, _to_number(estimated_cost))
-        self._add_attr(attributes, cfg.MS_ATTR_TOTAL_TO_PAY_ID, _to_number(total_to_pay))
         # «Комментарий курьеру» (доп.поле) НЕ заполняем из заказа — менеджер пишет
         # его вручную при необходимости. Комментарий покупателя идёт только в
         # нативное поле «Комментарий» (body["description"]). Поля не связаны.

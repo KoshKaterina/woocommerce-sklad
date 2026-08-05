@@ -32,19 +32,11 @@ def make_config():
     cfg.MS_SALES_CHANNEL_ID = "sc-shop"
     cfg.MS_ATTR_ORDER_NUMBER_ID = "attr-order-num"
     cfg.MS_ATTR_PAYMENT_METHOD_ID = "attr-pay-method"
-    cfg.MS_ATTR_PAYMENT_TYPE_ID = "attr-pay-type"
     cfg.MS_ATTR_PROMO_CODE_ID = "attr-promo"
     cfg.MS_ATTR_DELIVERY_SD_ID = "attr-del-sd"
-    cfg.MS_ATTR_DELIVERY_TYPE_ID = "attr-del-type"
     cfg.MS_ATTR_PVZ_CODE_ID = "attr-pvz"
-    cfg.MS_ATTR_DELIVERY_COST_ID = "attr-del-cost"
-    cfg.MS_ATTR_ESTIMATED_COST_ID = "attr-est-cost"
-    cfg.MS_ATTR_TOTAL_TO_PAY_ID = "attr-total"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
-    cfg.MS_CUSTOMENTITY_PAYMENT_TYPE_ID = "ce-pay-type"
     cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID = "ce-del-sd"
-    cfg.MS_PAYMENT_TYPE_PREPAID_ID = "pt-prepaid"
-    cfg.MS_PAYMENT_TYPE_NONCASH_ID = "pt-noncash"
     cfg.MS_DELIVERY_SD_CDEK_ID = "sd-cdek"
     cfg.MS_DELIVERY_SD_DOSTAVISTA_ID = "sd-dostavista"
     cfg.MS_DELIVERY_SD_SHOWROOM_ID = "sd-showroom"
@@ -174,10 +166,9 @@ def test_e2e_sample_order_creates_in_ms():
     # delivery_sd → cdek (customentity)
     assert isinstance(attrs["attr-del-sd"], dict)
     assert "sd-cdek" in attrs["attr-del-sd"]["meta"]["href"]
-    # delivery_type → pvz = long 1 (новое поле «Вид доставки», не справочник)
-    assert attrs["attr-del-type"] == 1
-    # payment_type → prepaid
-    assert "pt-prepaid" in attrs["attr-pay-type"]["meta"]["href"]
+    # «Вид доставки» и «Прием платежа» удалены 05.08.2026 — их в заказе быть не должно
+    assert "attr-del-type" not in attrs
+    assert "attr-pay-type" not in attrs
 
 
 def test_e2e_skips_when_order_already_in_ms():
@@ -212,11 +203,12 @@ def test_e2e_cod_order_adds_margin_service():
                       if c[0][0] == "service" and "Наценка за наложенный платеж" in c[0][1]]
     assert len(margin_lookups) >= 1
 
-    # Атрибут "сумма к оплате получателем" заполнен (это COD)
+    # «Итого к оплате получателем» и «Прием платежа» удалены 05.08.2026:
+    # для COD признак живёт в «Способе оплаты» и в позиции-наценке
     attrs = attrs_index(body)
-    assert attrs["attr-total"] not in (None, "0")
-    # payment_type → noncash (при получении)
-    assert "pt-noncash" in attrs["attr-pay-type"]["meta"]["href"]
+    assert "attr-total" not in attrs
+    assert "attr-pay-type" not in attrs
+    assert "получ" in attrs["attr-pay-method"].lower()
 
 
 def test_e2e_familypack_order_splits_into_two_positions():
