@@ -205,15 +205,6 @@ class OrderProcessor:
         rows = self.ms.find_by_filter("customerorder", filter_str)
         return rows[0] if rows else None
 
-    def _resolve_delivery_sd_id(self, key: str) -> str | None:
-        mapping = {
-            "cdek": self.config.MS_DELIVERY_SD_CDEK_ID,
-            "dostavista": self.config.MS_DELIVERY_SD_DOSTAVISTA_ID,
-            "showroom": self.config.MS_DELIVERY_SD_SHOWROOM_ID,
-            "rms_pickup": self.config.MS_DELIVERY_SD_RMS_PICKUP_ID,
-        }
-        return mapping.get(key)
-
     def _create_single_order(self, *, spec: dict, agent_meta: dict,
                              order: NormalizedOrder) -> dict | None:
         """Создать один заказ в МС (никогда не обновляет существующие)."""
@@ -263,19 +254,10 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_PAYMENT_METHOD_ID,
                        order.payment_title if order.payment_title else None)
 
-        # Доставка СД (customentity)
-        if order.delivery_sd_key:
-            sd_element_id = self._resolve_delivery_sd_id(order.delivery_sd_key)
-            if sd_element_id:
-                attr = build_attribute(
-                    cfg.MS_ATTR_DELIVERY_SD_ID, "custom",
-                    is_custom_entity=True,
-                    dictionary_id=cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID,
-                    element_id=sd_element_id,
-                )
-                if attr:
-                    attributes.append(attr)
-
+        # ⚠️ 06.08.2026: доп.поле «Доставка» (customentity со справочником служб)
+        # удалено по решению Кати - вид доставки виден в услугах заказа, дублировать
+        # его отдельным полем не нужно. delivery_sd_key остаётся: по нему выбирается
+        # статус заказа для самовывоза из шоурума (см. _build_body_from_normalized).
         self._add_attr(attributes, cfg.MS_ATTR_PVZ_CODE_ID, order.pvz_code)
         # «Комментарий курьеру» (доп.поле) НЕ заполняем из заказа — менеджер пишет
         # его вручную при необходимости. Комментарий покупателя идёт только в

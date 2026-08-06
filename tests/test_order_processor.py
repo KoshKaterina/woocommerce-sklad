@@ -45,14 +45,9 @@ def make_config():
     cfg.MS_ATTR_ORDER_NUMBER_ID = "attr-order-num"
     cfg.MS_ATTR_PAYMENT_METHOD_ID = "attr-pay-method"
     cfg.MS_ATTR_PROMO_CODE_ID = "attr-promo"
-    cfg.MS_ATTR_DELIVERY_SD_ID = "attr-del-sd"
     cfg.MS_ATTR_PVZ_CODE_ID = "attr-pvz"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
     cfg.MS_ATTR_YM_CLIENT_ID = "attr-ym"
-    cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID = "ce-del-sd"
-    cfg.MS_DELIVERY_SD_CDEK_ID = "sd-cdek"
-    cfg.MS_DELIVERY_SD_DOSTAVISTA_ID = "sd-dostavista"
-    cfg.MS_DELIVERY_SD_SHOWROOM_ID = "sd-showroom"
     return cfg
 
 

@@ -16,8 +16,6 @@ log = get_logger(__name__)
 _HARDCODED_DEFAULTS = frozenset({
     "MS_ATTR_COURIER_COMMENT_ID", "MS_ATTR_YM_CLIENT_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
-    "MS_DELIVERY_SD_DOSTAVISTA_ID", "MS_DELIVERY_SD_SHOWROOM_ID",
-    "MS_DELIVERY_SD_RMS_PICKUP_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
     "MS_PROJECT_INSALES_ID",
 })
@@ -47,15 +45,12 @@ class Config:
     # Если задан — такие заказы создаются в этом статусе вместо MS_STATE_NEW_LEAD_ID.
     MS_STATE_SHOWROOM_PICKUP_ID: str = ""
 
-    # UUID справочников (customentity)
-    MS_CUSTOMENTITY_DELIVERY_SD_ID: str = ""
-
     # UUID доп. полей заказа покупателя — из .env (зависят от аккаунта, не менялись):
     MS_ATTR_ORDER_NUMBER_ID: str = ""
     MS_ATTR_PAYMENT_METHOD_ID: str = ""
     MS_ATTR_PROMO_CODE_ID: str = ""
-    MS_ATTR_DELIVERY_SD_ID: str = ""
     MS_ATTR_PVZ_CODE_ID: str = ""
+    # («Доставка» - MS_ATTR_DELIVERY_SD_ID - удалена 06.08.2026, см. ниже)
     # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS).
     # ⚠️ 05.08.2026 удалены поля фулфилмента: «Вид доставки», «Стоимость доставки»,
     # «Оценочная стоимость», «Итого к оплате получателем», «Прием платежа» — вместе
@@ -67,17 +62,10 @@ class Config:
     # сквозная аналитика МС → amoCRM → Метрика. Тип поля — string (19-значное число
     # пишем строкой, без потери точности). Захардкожено (поле создано 2026-06).
     MS_ATTR_YM_CLIENT_ID: str = "26b2eac0-6806-11f1-0a80-045b00304eed"
-
-    # UUID элементов справочника "Доставка (СД)".
-    # Интеграция ставит автоматически ТОЛЬКО эти значения (WC: СДЭК / Достависта /
-    # шоурум; InSales: СДЭК / ExpressRMS-самовывоз). Остальные элементы справочника
-    # (ускоренные/экспресс-тарифы, Яндекс, Почта России и пр.) менеджер выбирает
-    # вручную — код их не трогает.
-    MS_DELIVERY_SD_CDEK_ID: str = ""  # из .env (исторически)
-    # ...новые элементы 2026-06 — захардкожены (см. _HARDCODED_DEFAULTS):
-    MS_DELIVERY_SD_DOSTAVISTA_ID: str = "5b457631-633a-11f1-0a80-1a4500355b37"  # Достависта (стандартная)
-    MS_DELIVERY_SD_SHOWROOM_ID: str = "66d0d59d-65a3-11f1-0a80-045b001337ad"    # Самовывоз из шоурума Sunscrypt
-    MS_DELIVERY_SD_RMS_PICKUP_ID: str = "4bd63ae7-2aa1-11f1-0a80-023a0030436b"  # ExpressRMS(Самовывоз), InSales-шоурум
+    # ⚠️ 06.08.2026 удалено поле «Доставка» (customentity) вместе со справочником
+    # служб доставки и всеми его элементами (MS_ATTR_DELIVERY_SD_ID,
+    # MS_CUSTOMENTITY_DELIVERY_SD_ID, MS_DELIVERY_SD_*): вид доставки живёт в услугах
+    # заказа, отдельное поле не нужно (решение Кати).
 
     # «Вид доставки» теперь long-поле: коды (1=ПВЗ, 2=курьер, 3=почтомат)
     # зашиты в OrderProcessor._resolve_delivery_type_num — отдельные UUID не нужны

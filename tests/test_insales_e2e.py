@@ -33,13 +33,8 @@ def make_config():
     cfg.MS_ATTR_ORDER_NUMBER_ID = "attr-order-num"
     cfg.MS_ATTR_PAYMENT_METHOD_ID = "attr-pay-method"
     cfg.MS_ATTR_PROMO_CODE_ID = "attr-promo"
-    cfg.MS_ATTR_DELIVERY_SD_ID = "attr-del-sd"
     cfg.MS_ATTR_PVZ_CODE_ID = "attr-pvz"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
-    cfg.MS_CUSTOMENTITY_DELIVERY_SD_ID = "ce-del-sd"
-    cfg.MS_DELIVERY_SD_CDEK_ID = "sd-cdek"
-    cfg.MS_DELIVERY_SD_DOSTAVISTA_ID = "sd-dostavista"
-    cfg.MS_DELIVERY_SD_SHOWROOM_ID = "sd-showroom"
     return cfg
 
 
@@ -163,9 +158,8 @@ def test_e2e_sample_order_creates_in_ms():
     assert attrs["attr-order-num"] == "17621 Tangemshop"
     assert attrs["attr-pay-method"] == "Онлайн-оплата"  # нормализовано к формулировке WC
     assert attrs["attr-pvz"] == "SUR18"
-    # delivery_sd → cdek (customentity)
-    assert isinstance(attrs["attr-del-sd"], dict)
-    assert "sd-cdek" in attrs["attr-del-sd"]["meta"]["href"]
+    # «Доставка» (customentity) удалена 06.08.2026 - в заказе её быть не должно
+    assert "attr-del-sd" not in attrs
     # «Вид доставки» и «Прием платежа» удалены 05.08.2026 — их в заказе быть не должно
     assert "attr-del-type" not in attrs
     assert "attr-pay-type" not in attrs
