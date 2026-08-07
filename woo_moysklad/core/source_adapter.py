@@ -9,6 +9,16 @@ from woo_moysklad.core.field_mappers import is_manual_prepayment
 log = get_logger(__name__)
 
 
+def _utc_naive_iso(moment: datetime) -> str:
+    """UTC-время строкой без смещения зоны: «2026-08-07T13:06:00».
+
+    WooCommerce принимает даты фильтра только без хвоста «+00:00» — со смещением
+    и dates_are_gmt=true он молча отдаёт пустой список (проверено на живом API
+    07.08.2026). Микросекунды тоже убираем: в фильтре они не нужны.
+    """
+    return moment.replace(tzinfo=None, microsecond=0).isoformat()
+
+
 class SourceAdapter(ABC):
     """Абстрактный адаптер источника заказов для Reconciliation.
 
@@ -60,9 +70,15 @@ class WooSourceAdapter(SourceAdapter):
                                  window_end: datetime) -> list[dict]:
         # Окно приходит в UTC (reconciliation.run), поэтому dates_are_gmt=True:
         # иначе WooCommerce прочитает даты как время сайта (МСК) и окно уедет на 3 часа.
+        #
+        # ⚠️ Дату шлём БЕЗ смещения зоны. isoformat() у aware-datetime даёт хвост
+        # «+00:00», и WooCommerce в паре с dates_are_gmt=true на такую строку
+        # отдаёт ПУСТОЙ список — сверка девять дней возвращала ноль заказов и
+        # молча не ловила потери (07.08.2026, заказ #18287). Проверено на живом
+        # API: со смещением 0 заказов, без смещения — находит.
         return self.woo.get_orders(
-            modified_after=window_start.isoformat(),
-            modified_before=window_end.isoformat(),
+            modified_after=_utc_naive_iso(window_start),
+            modified_before=_utc_naive_iso(window_end),
             dates_are_gmt=True,
         )
 

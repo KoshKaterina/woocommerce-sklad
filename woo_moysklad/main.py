@@ -156,6 +156,19 @@ async def diag_insales():
     return result
 
 
+def _missing_in_ms(order_id: str) -> bool:
+    """Заказа с таким номером сайта в МС нет? Ошибку поиска считаем «есть»:
+    лучше пропустить создание, чем задвоить заказ на сбое МС."""
+    if not order_id or reconciliation is None:
+        return False
+    try:
+        return reconciliation._find_order_in_ms(order_id) is None
+    except Exception as e:
+        log.error("Проверка наличия заказа в МС не удалась",
+                  order_id=order_id, error=str(e))
+        return False
+
+
 @app.post("/webhook/order")
 async def webhook_order(
     request: Request,
@@ -194,7 +207,16 @@ async def webhook_order(
     # --- Определение действия ---
     order_id = str(order_data.get("id", ""))
     if topic == "order.updated":
-        if order_data.get("status") == "processing":
+        # ⚠️ Сначала проверяем, доехал ли заказ до МС вообще. Вебхук «создан»
+        # иногда не доходит (07.08.2026, заказ #18287: пришёл только «изменён»),
+        # и тогда ветки ниже выходили в ignored, а заказа в МС не было ни в этот
+        # день, ни потом — периодическая сверка в это время была сломана.
+        # Пришло событие по заказу, которого в МС нет → создаём его.
+        if _missing_in_ms(order_id):
+            log.warning("order.updated по заказу, которого нет в МС — создаём",
+                        order_id=order_id, status=order_data.get("status"))
+            action = "order.created"
+        elif order_data.get("status") == "processing":
             # COD ("при получении") и ручную предоплату ("На карту", "Банковский
             # перевод") не помечаем — деньги ещё не получены, ждём отметки менеджера
             payment_title = order_data.get("payment_method_title", "")
