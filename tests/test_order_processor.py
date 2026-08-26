@@ -210,6 +210,43 @@ def test_only_opened_creates_one_order(sample_order):
     assert len(body["positions"]) == 2
 
 
+# --- mark_paid: дозаполнение контрагента (email/имя из заказа) ---
+
+def make_existing_ms_order():
+    """Заказ, уже существующий в МС (для mark_paid — без ретраев поиска)."""
+    return {
+        "id": "existing-id",
+        "name": "00099",
+        "meta": {"href": "..."},
+        "agent": {"meta": {"href": "agent-href"}},
+        "sum": 100000,
+        "payedSum": 0,
+    }
+
+
+def test_mark_paid_enriches_counterparty(sample_order):
+    """mark_paid дозаполняет контрагента данными заказа (email иногда доезжает
+    только к моменту processing — см. docstring OrderProcessor.mark_paid)."""
+    processor, ms, cp, pm = make_processor(find_existing=make_existing_ms_order())
+    processor.mark_paid(sample_order)
+
+    cp.find_or_create_from_normalized.assert_called_once()
+    customer = cp.find_or_create_from_normalized.call_args[0][0]
+    assert customer.email == "katerina@kosh.games"
+    assert customer.phone == "+79099371845"
+
+
+def test_mark_paid_enrichment_failure_does_not_block_payment(sample_order):
+    """Сбой дозаполнения контрагента не должен ронять маркировку оплаты."""
+    processor, ms, cp, pm = make_processor(find_existing=make_existing_ms_order())
+    cp.find_or_create_from_normalized.side_effect = CounterpartyError("MS API 400")
+
+    results = processor.mark_paid(sample_order)
+
+    assert results  # платёж всё равно создан
+    ms.post.assert_called()  # entity/paymentin
+
+
 def test_mixed_order_number_suffix(sample_order):
     """Второй заказ (из видеообзора) получает суффикс _1 в номере."""
     fake_positions = {

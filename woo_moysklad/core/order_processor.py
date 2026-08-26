@@ -76,9 +76,18 @@ class OrderProcessor:
         return self.process_normalized_order(normalized)
 
     def mark_paid(self, order_data: dict) -> list[dict]:
-        """Маркировка оплаты заказа WooCommerce (основной + _1 если был вскрытый)."""
+        """Маркировка оплаты заказа WooCommerce (основной + _1 если был вскрытый).
+
+        Заодно дозаполняет контрагента (email/имя) свежими данными заказа: на
+        момент order.created email иногда ещё не был известен (или сам вебхук
+        не дошёл — см. main.py), а order.updated при status=processing раньше
+        шёл ТОЛЬКО в маркировку оплаты, минуя контрагента — email из заказа
+        так и оставался ненаписанным в МС, даже если он был у клиента на сайте.
+        """
+        from woo_moysklad.woocommerce.normalizer import normalize_wc_order
         order_id = str(order_data["id"])
         date_paid = order_data.get("date_paid")
+        self._enrich_counterparty(normalize_wc_order(order_data).customer, order_id=order_id)
         return self._mark_paid_internal(
             base_order_number=order_id,
             suffixes=["", "_1"],
@@ -87,19 +96,36 @@ class OrderProcessor:
         )
 
     def mark_paid_insales(self, order_data: dict) -> list[dict]:
-        """Маркировка оплаты заказа InSales (один заказ, с суффиксом номера ' Tangemshop')."""
-        from woo_moysklad.insales.normalizer import _INSALES_ORDER_SUFFIX
+        """Маркировка оплаты заказа InSales (один заказ, с суффиксом номера ' Tangemshop').
+
+        Дозаполняет контрагента — см. docstring mark_paid, та же причина.
+        """
+        from woo_moysklad.insales.normalizer import _INSALES_ORDER_SUFFIX, normalize_insales_order
         number = str(order_data.get("number") or order_data.get("id", ""))
         paid_at = order_data.get("paid_at")
         organization_id = (
             self.config.MS_ORGANIZATION_INSALES_ID or self.config.MS_ORGANIZATION_ID
         )
+        normalized = normalize_insales_order(order_data, self.config)
+        self._enrich_counterparty(normalized.customer, order_id=number)
         return self._mark_paid_internal(
             base_order_number=f"{number}{_INSALES_ORDER_SUFFIX}",
             suffixes=[""],
             date_paid=paid_at,
             organization_id=organization_id,
         )
+
+    def _enrich_counterparty(self, customer, *, order_id: str) -> None:
+        """Дозаполнить контрагента (email/имя) по свежим данным заказа.
+
+        Не блокирует маркировку оплаты при сбое — это дозаполнение, а не
+        обязательный шаг создания заказа (тот уже прошёл раньше).
+        """
+        try:
+            self.cp_handler.find_or_create_from_normalized(customer)
+        except CounterpartyError as e:
+            log.warning("mark_paid: не удалось дозаполнить контрагента",
+                       order_id=order_id, error=str(e))
 
     # ──────────────────────────────────────────────
     # Универсальная обработка NormalizedOrder
