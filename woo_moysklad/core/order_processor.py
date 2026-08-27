@@ -8,6 +8,7 @@ from woo_moysklad.exceptions import CounterpartyError, OrderProcessingError
 from woo_moysklad.core.field_mappers import build_attribute
 from woo_moysklad.logger import get_logger
 from woo_moysklad.core.normalized_order import NormalizedOrder
+from woo_moysklad.core.order_locks import claim_order
 from woo_moysklad.core.product_matcher import ProductMatcher
 
 log = get_logger(__name__)
@@ -136,7 +137,22 @@ class OrderProcessor:
 
         Может создать 1 или 2 заказа (WC: при наличии товаров "из видеообзора").
         Никогда не обновляет существующие заказы.
+
+        Номер заказа занимается замком на всю обработку: вебхук и сверка ходят
+        сюда из разных потоков и без замка успевали создать два заказа на один
+        номер сайта (см. core/order_locks.py). Кто пришёл вторым — выходит ни с
+        чем, его работу уже делает первый.
         """
+        with claim_order(order.order_number) as acquired:
+            if not acquired:
+                log.info("Заказ уже обрабатывается другим потоком, пропускаем",
+                         source=order.source, order_id=order.order_id,
+                         order_number=order.order_number)
+                return []
+            return self._process_claimed_order(order)
+
+    def _process_claimed_order(self, order: NormalizedOrder) -> list[dict]:
+        """Обработка заказа, номер которого уже занят замком."""
         log.info("Обработка заказа", source=order.source, order_id=order.order_id)
 
         # --- 1. Контрагент ---
