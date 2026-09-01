@@ -8,7 +8,7 @@ Python 3.12 / FastAPI / structlog. Деплой — Docker (`Dockerfile` коп�
 запускает `uvicorn woo_moysklad.main:app`).
 
 ## Команды
-- Тесты: `.venv/bin/python3 -m pytest tests/ -q` (сейчас ~163, должны быть зелёными).
+- Тесты: `.venv/bin/python3 -m pytest tests/ -q` (сейчас 208, должны быть зелёными).
 - Ручной прогон заказа: `python scripts/process_order.py <id>` (WC),
   `python scripts/process_insales_order.py <номер>` (InSales),
   `python scripts/resync_order.py --order <N> --dry-run` (reverse-sync 1 заказа).
@@ -40,6 +40,16 @@ Python 3.12 / FastAPI / structlog. Деплой — Docker (`Dockerfile` коп�
 Берёт заказы, **изменённые** за окно (WC `date_modified`, InSales `updated_at`), и:
 заказа нет в МС → создать; есть, надо оплатить, `payedSum==0` → проставить платёж.
 Поля существующих заказов НЕ трогает. Поиск в МС — по доп.полю «Номер заказа на сайте».
+Верхняя граница окна отстаёт на `RECONCILIATION_FRESH_SKEW` (2 мин): свежие заказы —
+забота вебхука, эффективное окно 7 минут.
+
+## Замок по номеру заказа (`core/order_locks.py`, 27.08.2026)
+Вебхук (поток `asyncio.to_thread`) и сверка (поток `threading.Timer`) ходят в один
+`OrderProcessor`. Проверка «заказ уже есть?» только СПРАШИВАЕТ МС, поэтому оба входа
+успевали получить «нет» и создать по заказу — с 10.08 по 27.08 так вышло пять пар дублей.
+Теперь `process_normalized_order` занимает номер на всю обработку; кто пришёл вторым,
+возвращает `[]` и пишет «Заказ уже обрабатывается другим потоком». Замок
+внутрипроцессный — верно, пока uvicorn без `--workers`.
 
 ## Reverse-sync (`core/field_resync.py`) — `FIELD_RESYNC_ENABLED`, по умолч. ВКЛ
 Идёт по заказам МС, изменённым в окне (кроме канала «Маркетплейс»), и пересчитывает

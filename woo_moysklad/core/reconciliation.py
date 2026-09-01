@@ -11,6 +11,13 @@ log = get_logger(__name__)
 
 RECONCILIATION_INTERVAL = 180  # 3 минуты
 RECONCILIATION_WINDOW = timedelta(minutes=9)  # окно проверки (3× интервала, с запасом)
+# Свежие заказы отдаём вебхуку: он приходит сразу после оформления, а сверка —
+# страховка и подождать может. Без этого отступа оба входа брались за один заказ
+# одновременно и создавали пару дублей в МС (27.08.2026, заказ сайта 18643).
+# Замок в core/order_locks.py ловит гонку и без отступа; отступ убирает саму
+# встречу двух входов на одном заказе. Окно при этом остаётся 7 минут — заказ
+# успевает попасть в две-три сверки подряд.
+RECONCILIATION_FRESH_SKEW = timedelta(minutes=2)
 
 
 class Reconciliation:
@@ -85,10 +92,12 @@ class Reconciliation:
         log.info("Сверка: начало", sources=[a.name for a in self.adapters])
         now = datetime.now(timezone.utc)
         window_start = now - RECONCILIATION_WINDOW
+        # Верхняя граница отстаёт от «сейчас»: самые свежие заказы — забота вебхука
+        window_end = now - RECONCILIATION_FRESH_SKEW
 
         for adapter in self.adapters:
             try:
-                self._run_adapter(adapter, window_start, now)
+                self._run_adapter(adapter, window_start, window_end)
             except Exception as e:
                 log.error("Сверка: необработанная ошибка источника",
                           source=adapter.name, error=str(e))

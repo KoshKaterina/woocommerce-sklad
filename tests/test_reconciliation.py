@@ -3,7 +3,12 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
-from woo_moysklad.core.reconciliation import Reconciliation
+from woo_moysklad.core.reconciliation import (
+    RECONCILIATION_FRESH_SKEW,
+    RECONCILIATION_INTERVAL,
+    RECONCILIATION_WINDOW,
+    Reconciliation,
+)
 from woo_moysklad.core.source_adapter import (
     InSalesSourceAdapter,
     SourceAdapter,
@@ -64,6 +69,39 @@ def make_ms_client(existing_by_number: dict):
 
 
 # --- Тесты ---
+
+class WindowRecordingAdapter(FakeAdapter):
+    """Запоминает границы окна, с которыми её позвали."""
+
+    def __init__(self):
+        super().__init__(orders=[])
+        self.windows = []
+
+    def fetch_modified_in_window(self, window_start, window_end):
+        self.windows.append((window_start, window_end))
+        return self.orders
+
+
+def test_window_upper_bound_lags_behind_now():
+    """Верхняя граница окна отстаёт на RECONCILIATION_FRESH_SKEW.
+
+    Самые свежие заказы оставляем вебхуку: иначе сверка берётся за заказ, который
+    вебхук прямо сейчас обрабатывает, и рождается пара дублей (27.08.2026).
+    """
+    adapter = WindowRecordingAdapter()
+    recon = Reconciliation(make_config(), make_ms_client({}), [adapter])
+
+    before = datetime.now(timezone.utc)
+    recon.run()
+    after = datetime.now(timezone.utc)
+
+    window_start, window_end = adapter.windows[0]
+    assert window_end <= after - RECONCILIATION_FRESH_SKEW
+    assert window_end >= before - RECONCILIATION_FRESH_SKEW - timedelta(seconds=5)
+    # окно осталось шире интервала таймера — заказ попадёт в несколько сверок
+    assert window_end - window_start == RECONCILIATION_WINDOW - RECONCILIATION_FRESH_SKEW
+    assert window_end - window_start >= timedelta(seconds=RECONCILIATION_INTERVAL)
+
 
 def test_creates_missing_orders():
     """Если заказа нет в МС — вызывается process."""
