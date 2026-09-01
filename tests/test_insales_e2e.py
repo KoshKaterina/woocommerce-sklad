@@ -38,6 +38,8 @@ def make_config():
     # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
     # и весь e2e-набор молча уехал бы на промо-маппинг white_first по умолчанию.
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
+    cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000
+    cfg.FAMILY_PACK_WHITE_DISCOUNT_PERCENT = 30
     return cfg
 
 
@@ -234,14 +236,18 @@ def test_e2e_familypack_order_splits_into_two_positions():
 
 def test_e2e_familypack_order_white_first_flag_swaps_first_position():
     """FAMILY_PACK_WHITE_FIRST_ENABLED=True: первая позиция Family Pack — белый
-    (TG130X3-B) вместо чёрного (TG128X3-B), вторая позиция не меняется."""
+    (TG130X3-B) вместо чёрного (TG128X3-B), вторая позиция (артикул) не меняется,
+    но цена делится по реальной экономике акции, а не поровну."""
     with open(FAMILYPACK_ORDER, encoding="utf-8") as f:
         order = json.load(f)
     assert order["order_lines"][0]["sku"] == "TG-FPSEA"  # чёрный+Electra Sea, было бы
+    assert order["order_lines"][0]["sale_price"] == 12000.0
 
     ms = make_ms_client()
     processor, cfg = build_processor(ms)
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = True
+    cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000  # 7 590 ₽
+    cfg.FAMILY_PACK_WHITE_DISCOUNT_PERCENT = 30
     processor.process_insales_order(order)
 
     body = post_calls(ms, "entity/customerorder")[0][0][1]
@@ -250,16 +256,20 @@ def test_e2e_familypack_order_white_first_flag_swaps_first_position():
                          or "/product/" in p["assortment"]["meta"]["href"]]
     assert len(product_positions) == 2
 
-    hrefs = [p["assortment"]["meta"]["href"] for p in product_positions]
-    assert any(href.endswith("/TG130X3-B") for href in hrefs)  # белый вместо чёрного
-    assert any(href.endswith("/TG-SEA") for href in hrefs)     # вторая позиция как была
-    assert not any(href.endswith("/TG128X3-B") for href in hrefs)  # чёрного больше нет
+    by_sku = {p["assortment"]["meta"]["href"].rsplit("/", 1)[-1]: p for p in product_positions}
+    assert set(by_sku) == {"TG130X3-B", "TG-SEA"}
+    assert not any(href.endswith("/TG128X3-B")
+                   for href in (p["assortment"]["meta"]["href"] for p in product_positions))
 
-    # Сумма и деление цены не зависят от флага
+    # Белый — по цене акции (7590 * 70% = 5313 ₽), а не поровну (было бы 6000 ₽ каждому)
+    assert by_sku["TG130X3-B"]["price"] == 531300
+    # Второй — остаток от суммы заказа, не хардкожен
+    assert by_sku["TG-SEA"]["price"] == 668700
+
     total_cents = sum(p["price"] * p["quantity"] for p in product_positions)
     expected = round(float(order["order_lines"][0]["sale_price"]) * 100) * \
         order["order_lines"][0]["quantity"]
-    assert total_cents == expected
+    assert total_cents == expected  # сумма всё равно сходится с ценой заказа
 
 
 def test_e2e_courier_order_uses_shipping_address():

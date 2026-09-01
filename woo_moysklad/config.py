@@ -96,6 +96,14 @@ class Config:
     # _INSALES_SKU_TO_MS_SKUS_WHITE_FIRST в woo_moysklad/insales/normalizer.py.
     FAMILY_PACK_WHITE_FIRST_ENABLED: bool = False
 
+    # Разбивка цены Family Pack между 2 позициями МС при включённом промо (см. выше):
+    # белый (первая позиция) записывается по цене акции — база минус скидка, а не
+    # «поровну». База — живая цена белого 3-карточного (TG130X3-B) на момент акции
+    # (01.09.2026: 7 590 ₽), проверять/менять в .env, если цену в InSales пересмотрят,
+    # деплой без правки кода не нужен. См. _split_family_pack_price в normalizer.py.
+    FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS: int = 759000   # 7 590 ₽
+    FAMILY_PACK_WHITE_DISCOUNT_PERCENT: int = 30
+
     # Настройки
     MS_MAX_REQUESTS_PER_SECOND: int = 3
     HOST: str = "0.0.0.0"

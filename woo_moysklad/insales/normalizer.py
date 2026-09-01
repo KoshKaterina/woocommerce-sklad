@@ -129,6 +129,45 @@ def _split_price_evenly(total_cents: int, parts: int) -> list[int]:
     return result
 
 
+def _split_family_pack_price(
+    total_cents: int,
+    ms_skus: list[str],
+    white_first: bool,
+    white_base_price_kopecks: int,
+    white_discount_percent: int,
+) -> list[int]:
+    """Разделить цену Family Pack между позициями МС.
+
+    Без промо (white_first=False) или не Family Pack (не ровно 2 позиции, или
+    первая — не белый) — поровну, как раньше (_split_price_evenly).
+
+    С промо для Family Pack (первая позиция после _white_first() — белый
+    TG130X3-B) — по реальной экономике акции: первая позиция получает
+    ФИКСИРОВАННУЮ цену со скидкой (white_base_price_kopecks с вычетом
+    white_discount_percent), вторая — остаток (total_cents − белый). Так сумма
+    позиций всегда сходится с ценой заказа (сколько бы ни стоил второй
+    кошелёк на самом деле — его цена явно нигде не хардкожена), а белый
+    кошелёк в МойСкладе записывается ровно по цене акции, а не «поровну».
+
+    Если цена акции меньше расчётной скидки на белый (заказ дешевле, чем
+    должен быть в принципе) — откатываемся на равное деление и логируем:
+    отрицательная цена второй позиции в МС недопустима.
+    """
+    if not white_first or len(ms_skus) != 2 or ms_skus[0] != _FAMILY_PACK_FIRST_WHITE_SKU:
+        return _split_price_evenly(total_cents, len(ms_skus))
+
+    white_cents = round(white_base_price_kopecks * (100 - white_discount_percent) / 100)
+    second_cents = total_cents - white_cents
+
+    if second_cents < 0:
+        log.warning("Family Pack white_first: цена акции меньше расчётной скидки на белый "
+                    "— делим поровну вместо отрицательной цены второй позиции",
+                    total_cents=total_cents, white_cents=white_cents)
+        return _split_price_evenly(total_cents, len(ms_skus))
+
+    return [white_cents, second_cents]
+
+
 def _safe(name: str, func):
     try:
         return func()
@@ -463,6 +502,13 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     # идёт отдельной услугой. discounts_amount — это скидка по купону, размазанная
     # на строку заказа (InSales).
     white_first = bool(getattr(config, "FAMILY_PACK_WHITE_FIRST_ENABLED", False))
+    # Читаем цену/скидку белого из конфига только если промо реально включено —
+    # чтобы не трогать эти поля конфига (и не падать на моках в тестах), когда
+    # флаг выключен и они не нужны.
+    white_base_price_kopecks = int(getattr(config, "FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS", 759000)) \
+        if white_first else 0
+    white_discount_percent = int(getattr(config, "FAMILY_PACK_WHITE_DISCOUNT_PERCENT", 30)) \
+        if white_first else 0
     line_items = []
     for ol in order_data.get("order_lines", []):
         raw_sku = ol.get("sku") or ""
@@ -481,7 +527,11 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
         # Цена за штуку с учётом купонной скидки (в копейках).
         line_total_cents = round((sale_price * quantity - discounts_amount) * 100)
         per_unit_cents = line_total_cents // quantity if quantity else 0
-        prices = _split_price_evenly(per_unit_cents, len(ms_skus))
+        prices = _split_family_pack_price(
+            per_unit_cents, ms_skus, white_first,
+            white_base_price_kopecks=white_base_price_kopecks,
+            white_discount_percent=white_discount_percent,
+        )
         for ms_sku, price in zip(ms_skus, prices):
             line_items.append(NormalizedLineItem(
                 sku=ms_sku,

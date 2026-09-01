@@ -16,6 +16,7 @@ from woo_moysklad.insales.normalizer import (
     map_insales_payment_type,
     normalize_insales_order,
     resolve_to_ms_skus,
+    _split_family_pack_price,
 )
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -35,6 +36,10 @@ def make_config():
     # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
     # и normalize_insales_order молча переключился бы на промо-маппинг white_first.
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
+    # На случай если тест включит флаг, не выставив цену явно — код их читает
+    # только при white_first=True, но на MagicMock лучше не полагаться на дефолт.
+    cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000
+    cfg.FAMILY_PACK_WHITE_DISCOUNT_PERCENT = 30
     return cfg
 
 
@@ -130,6 +135,62 @@ def test_resolve_white_first_regular_products_untouched():
     assert resolve_to_ms_skus("TG-SEA", None, white_first=True) == ["TG-SEA"]
     assert resolve_to_ms_skus("TG-130X3-B", None, white_first=True) == ["TG130X3-B"]
     assert resolve_to_ms_skus("", 2053393393, white_first=True) == ["TG128X2-B"]  # 2 карты чёрный
+
+
+# --- _split_family_pack_price (реальная экономика акции 01.09.2026) ---
+
+def test_split_family_pack_price_flag_off_even_as_before():
+    """Флаг выключен — поведение прежнее (поровну), реальная экономика не считается."""
+    assert _split_family_pack_price(
+        1290300, ["TG128X3-B", "TG130X3-B"], white_first=False,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    ) == [645150, 645150]
+
+
+def test_split_family_pack_price_flag_on_white_black():
+    """Белый+чёрный, 12 903 ₽: белый = 5 313 (30% от 7 590), второй = остаток 7 590."""
+    prices = _split_family_pack_price(
+        1290300, ["TG130X3-B", "TG128X3-B"], white_first=True,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    )
+    assert prices == [531300, 759000]
+
+
+def test_split_family_pack_price_flag_on_white_designer():
+    """Белый+дизайнерский, 13 803 ₽: белый = те же 5 313, второй = остаток 8 490."""
+    prices = _split_family_pack_price(
+        1380300, ["TG130X3-B", "TG-SEA"], white_first=True,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    )
+    assert prices == [531300, 849000]
+
+
+def test_split_family_pack_price_flag_on_not_family_pack_untouched():
+    """С флагом, но не Family Pack (1 позиция) — обычное деление, не трогаем."""
+    assert _split_family_pack_price(
+        100000, ["TG-SEA"], white_first=True,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    ) == [100000]
+
+
+def test_split_family_pack_price_flag_on_first_not_white_untouched():
+    """С флагом, но первая позиция почему-то не белая (не должно случаться после
+    _white_first(), но функция сама себя защищает) — поровну, не выдумываем."""
+    assert _split_family_pack_price(
+        1290300, ["TG128X3-B", "TG130X3-B"], white_first=True,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    ) == [645150, 645150]
+
+
+def test_split_family_pack_price_negative_second_falls_back_to_even():
+    """Цена акции ниже скидки на белого (искажённые данные) — не уходим в минус,
+    откатываемся на равное деление."""
+    prices = _split_family_pack_price(
+        400000, ["TG130X3-B", "TG128X3-B"], white_first=True,
+        white_base_price_kopecks=759000, white_discount_percent=30,
+    )
+    assert prices == [200000, 200000]
+    assert min(prices) >= 0
 
 
 def test_resolve_sku_with_extra_dash():
