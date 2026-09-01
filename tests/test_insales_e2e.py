@@ -35,6 +35,9 @@ def make_config():
     cfg.MS_ATTR_PROMO_CODE_ID = "attr-promo"
     cfg.MS_ATTR_PVZ_CODE_ID = "attr-pvz"
     cfg.MS_ATTR_COURIER_COMMENT_ID = "attr-comment"
+    # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
+    # и весь e2e-набор молча уехал бы на промо-маппинг white_first по умолчанию.
+    cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
     return cfg
 
 
@@ -223,6 +226,36 @@ def test_e2e_familypack_order_splits_into_two_positions():
     assert len(product_positions) == 2
 
     # Сумма цен товаров = sale_price * 100 (без потерь при делении)
+    total_cents = sum(p["price"] * p["quantity"] for p in product_positions)
+    expected = round(float(order["order_lines"][0]["sale_price"]) * 100) * \
+        order["order_lines"][0]["quantity"]
+    assert total_cents == expected
+
+
+def test_e2e_familypack_order_white_first_flag_swaps_first_position():
+    """FAMILY_PACK_WHITE_FIRST_ENABLED=True: первая позиция Family Pack — белый
+    (TG130X3-B) вместо чёрного (TG128X3-B), вторая позиция не меняется."""
+    with open(FAMILYPACK_ORDER, encoding="utf-8") as f:
+        order = json.load(f)
+    assert order["order_lines"][0]["sku"] == "TG-FPSEA"  # чёрный+Electra Sea, было бы
+
+    ms = make_ms_client()
+    processor, cfg = build_processor(ms)
+    cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = True
+    processor.process_insales_order(order)
+
+    body = post_calls(ms, "entity/customerorder")[0][0][1]
+    product_positions = [p for p in body["positions"]
+                         if "product" in p["assortment"]["meta"]["href"]
+                         or "/product/" in p["assortment"]["meta"]["href"]]
+    assert len(product_positions) == 2
+
+    hrefs = [p["assortment"]["meta"]["href"] for p in product_positions]
+    assert any(href.endswith("/TG130X3-B") for href in hrefs)  # белый вместо чёрного
+    assert any(href.endswith("/TG-SEA") for href in hrefs)     # вторая позиция как была
+    assert not any(href.endswith("/TG128X3-B") for href in hrefs)  # чёрного больше нет
+
+    # Сумма и деление цены не зависят от флага
     total_cents = sum(p["price"] * p["quantity"] for p in product_positions)
     expected = round(float(order["order_lines"][0]["sale_price"]) * 100) * \
         order["order_lines"][0]["quantity"]

@@ -32,6 +32,9 @@ def make_config():
     cfg = MagicMock()
     cfg.MS_ORGANIZATION_INSALES_ID = "org-insales-uuid"
     cfg.MS_STATE_INSALES_NEW_ID = "state-insales-uuid"
+    # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
+    # и normalize_insales_order молча переключился бы на промо-маппинг white_first.
+    cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
     return cfg
 
 
@@ -95,6 +98,38 @@ def test_resolve_family_pack_color_by_sku():
     """Family Pack цветной → TG128X3-B + цветной 3-карточный."""
     assert resolve_to_ms_skus("TG-FPSEA", None) == ["TG128X3-B", "TG-SEA"]
     assert resolve_to_ms_skus("TG-FPHYPERBLUE", None) == ["TG128X3-B", "TG-HYPERBLUE"]
+
+
+# --- resolve_to_ms_skus: white_first (промо Tangemshop 01.09.2026) ---
+
+def test_resolve_white_first_default_off_unchanged():
+    """Без флага (или white_first=False) — поведение прежнее, чёрный первым."""
+    assert resolve_to_ms_skus("TG-FPB", None) == ["TG128X3-B", "TG128X3-B"]
+    assert resolve_to_ms_skus("TG-FPB", None, white_first=False) == ["TG128X3-B", "TG128X3-B"]
+
+
+def test_resolve_white_first_family_pack_by_sku():
+    """С флагом — первая позиция всех Family Pack становится белой, вторая не меняется."""
+    assert resolve_to_ms_skus("TG-FPB", None, white_first=True) == ["TG130X3-B", "TG128X3-B"]
+    assert resolve_to_ms_skus("TG-FPW", None, white_first=True) == ["TG130X3-B", "TG130X3-B"]
+    assert resolve_to_ms_skus("TG-FPSEA", None, white_first=True) == ["TG130X3-B", "TG-SEA"]
+    assert resolve_to_ms_skus("TG-FPSTEALTH", None, white_first=True) == ["TG130X3-B", "TG-STEALTH"]
+    assert resolve_to_ms_skus("TG-FPSKY", None, white_first=True) == ["TG130X3-B", "TG-SKY"]
+    assert resolve_to_ms_skus("TG-FPHYPERBLUE", None, white_first=True) == ["TG130X3-B", "TG-HYPERBLUE"]
+
+
+def test_resolve_white_first_family_pack_by_variant_id():
+    """С флагом — та же замена первой позиции и для резолва по variant_id."""
+    assert resolve_to_ms_skus("", 2053393409, white_first=True) == ["TG130X3-B", "TG128X3-B"]  # FP чёрный
+    assert resolve_to_ms_skus("", 2053395137, white_first=True) == ["TG130X3-B", "TG130X3-B"]  # FP белый
+    assert resolve_to_ms_skus("", 2053412817, white_first=True) == ["TG130X3-B", "TG-HYPERBLUE"]
+
+
+def test_resolve_white_first_regular_products_untouched():
+    """С флагом обычные товары и SKU-костыль не трогаются (только Family Pack)."""
+    assert resolve_to_ms_skus("TG-SEA", None, white_first=True) == ["TG-SEA"]
+    assert resolve_to_ms_skus("TG-130X3-B", None, white_first=True) == ["TG130X3-B"]
+    assert resolve_to_ms_skus("", 2053393393, white_first=True) == ["TG128X2-B"]  # 2 карты чёрный
 
 
 def test_resolve_sku_with_extra_dash():

@@ -57,27 +57,65 @@ _INSALES_VARIANT_ID_TO_MS_SKUS: dict[int, list[str]] = {
     # 2-карточные цветные (Stealth/Sky/Sea/Hyperblue) не продаются — не маппим.
 }
 
+# --- Промо Tangemshop 01.09.2026: «первый кошелёк Family Pack всегда белый» ---
+# Включается флагом FAMILY_PACK_WHITE_FIRST_ENABLED (config.py), по умолчанию
+# выключен — Family Pack раскладывается как раньше (1 чёрный + 1 по цвету).
+#
+# Артикулы Family Pack те же самые (TG-FPB, TG-FPSTEALTH, ...) — меняется только
+# то, во что они раскладываются в МС. Альтернативные словари ВЫВОДЯТСЯ из основных
+# автоматически (см. _white_first ниже), а не дублируются руками: у записи Family
+# Pack (2 позиции, первая — чёрный 3-карточный TG128X3-B) первая позиция
+# заменяется на белый TG130X3-B, вторая остаётся как была. Обычные товары и
+# SKU-костыли (1 позиция) не трогаются. Так два словаря не могут разойтись
+# по ошибке при правке одного из них.
+_FAMILY_PACK_FIRST_BLACK_SKU = "TG128X3-B"
+_FAMILY_PACK_FIRST_WHITE_SKU = "TG130X3-B"
 
-def resolve_to_ms_skus(raw_sku: str, variant_id: int | None) -> list[str]:
+
+def _white_first(mapping: dict) -> dict:
+    """Вывести промо-вариант маппинга: у Family Pack (первая позиция — чёрный
+    3-карточный) первая позиция заменяется на белый. Остальные записи — без изменений.
+    """
+    result = {}
+    for key, ms_skus in mapping.items():
+        if len(ms_skus) == 2 and ms_skus[0] == _FAMILY_PACK_FIRST_BLACK_SKU:
+            result[key] = [_FAMILY_PACK_FIRST_WHITE_SKU, ms_skus[1]]
+        else:
+            result[key] = ms_skus
+    return result
+
+
+_INSALES_SKU_TO_MS_SKUS_WHITE_FIRST = _white_first(_INSALES_SKU_TO_MS_SKUS)
+_INSALES_VARIANT_ID_TO_MS_SKUS_WHITE_FIRST = _white_first(_INSALES_VARIANT_ID_TO_MS_SKUS)
+
+
+def resolve_to_ms_skus(raw_sku: str, variant_id: int | None, white_first: bool = False) -> list[str]:
     """Вернуть список SKU МС для одной позиции InSales.
 
     Порядок:
-    1. Если SKU заполнен и есть в _INSALES_SKU_TO_MS_SKUS (Family Pack / костыли) → маппинг.
+    1. Если SKU заполнен и есть в словаре (Family Pack / костыли) → маппинг.
     2. Если SKU заполнен, но не в словаре → passthrough (InSales SKU = МС SKU).
        ProductMatcher найдёт товар в МС через API по этому SKU.
        Если не найдёт — залогирует ошибку и позиция будет пропущена.
-    3. Если SKU пустой, но есть variant_id в _INSALES_VARIANT_ID_TO_MS_SKUS → маппинг.
+    3. Если SKU пустой, но есть variant_id в словаре по variant_id → маппинг.
     4. Если SKU пустой и variant_id неизвестен → [] (позиция пропускается).
 
     Возвращает 1 элемент для обычного товара, 2+ для Family Pack (цена делится).
+
+    white_first: промо Tangemshop 01.09.2026 — первая позиция Family Pack белая
+    вместо чёрной (см. FAMILY_PACK_WHITE_FIRST_ENABLED в конфиге). По умолчанию
+    выключено — поведение не меняется.
     """
+    sku_map = _INSALES_SKU_TO_MS_SKUS_WHITE_FIRST if white_first else _INSALES_SKU_TO_MS_SKUS
+    variant_map = _INSALES_VARIANT_ID_TO_MS_SKUS_WHITE_FIRST if white_first else _INSALES_VARIANT_ID_TO_MS_SKUS
+
     sku = (raw_sku or "").strip()
     if sku:
-        if sku in _INSALES_SKU_TO_MS_SKUS:
-            return _INSALES_SKU_TO_MS_SKUS[sku]
+        if sku in sku_map:
+            return sku_map[sku]
         return [sku]  # passthrough → автопоиск в МС через ProductMatcher
-    if variant_id is not None and variant_id in _INSALES_VARIANT_ID_TO_MS_SKUS:
-        return _INSALES_VARIANT_ID_TO_MS_SKUS[variant_id]
+    if variant_id is not None and variant_id in variant_map:
+        return variant_map[variant_id]
     return []
 
 
@@ -424,11 +462,12 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     # full_sale_price НЕ подходит: оно включает COD-наценку, а у нас наценка
     # идёт отдельной услугой. discounts_amount — это скидка по купону, размазанная
     # на строку заказа (InSales).
+    white_first = bool(getattr(config, "FAMILY_PACK_WHITE_FIRST_ENABLED", False))
     line_items = []
     for ol in order_data.get("order_lines", []):
         raw_sku = ol.get("sku") or ""
         variant_id = ol.get("variant_id")
-        ms_skus = resolve_to_ms_skus(raw_sku, variant_id)
+        ms_skus = resolve_to_ms_skus(raw_sku, variant_id, white_first=white_first)
         sale_price = float(ol.get("sale_price", 0))
         discounts_amount = float(ol.get("discounts_amount") or 0)
         quantity = int(ol.get("quantity", 1))

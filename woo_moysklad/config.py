@@ -90,6 +90,12 @@ class Config:
     FIELD_RESYNC_ENABLED: bool = True            # включено; отключить — FIELD_RESYNC_ENABLED=false в .env
     MS_SALES_CHANNEL_MARKETPLACE_ID: str = "25a34be1-54e2-11ef-0a80-0c7c00196716"  # «Маркетплейс», захардкожено
 
+    # Промо Tangemshop «первый кошелёк Family Pack всегда белый» (01.09.2026):
+    # выключено по умолчанию — Family Pack раскладывается как раньше (1 чёрный + 1 по цвету).
+    # Включить на время акции — FAMILY_PACK_WHITE_FIRST_ENABLED=true в .env. См.
+    # _INSALES_SKU_TO_MS_SKUS_WHITE_FIRST в woo_moysklad/insales/normalizer.py.
+    FAMILY_PACK_WHITE_FIRST_ENABLED: bool = False
+
     # Настройки
     MS_MAX_REQUESTS_PER_SECOND: int = 3
     HOST: str = "0.0.0.0"
