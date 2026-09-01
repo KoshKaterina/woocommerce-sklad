@@ -94,17 +94,6 @@ def test_resolve_family_pack_white_by_sku():
     assert resolve_to_ms_skus("TG-FPW", None) == ["TG128X3-B", "TG130X3-B"]
 
 
-def test_resolve_family_pack_white_black_by_sku():
-    """TG-FPWB — обратный порядок к TG-FPW: белый + чёрный."""
-    assert resolve_to_ms_skus("TG-FPWB", None) == ["TG130X3-B", "TG128X3-B"]
-
-
-def test_resolve_family_pack_white_black_not_affected_by_white_first_flag():
-    """TG-FPWB уже начинается с белого — флаг white_first его не трогает
-    (первый элемент не TG128X3-B, _white_first() пропускает запись без изменений)."""
-    assert resolve_to_ms_skus("TG-FPWB", None, white_first=True) == ["TG130X3-B", "TG128X3-B"]
-
-
 def test_resolve_family_pack_color_by_sku():
     """Family Pack цветной → TG128X3-B + цветной 3-карточный."""
     assert resolve_to_ms_skus("TG-FPSEA", None) == ["TG128X3-B", "TG-SEA"]

@@ -35,10 +35,6 @@ _INSALES_SKU_TO_MS_SKUS: dict[str, list[str]] = {
     "TG-FPSTEALTH":     ["TG128X3-B", "TG-STEALTH"],
     "TG-FPSKY":         ["TG128X3-B", "TG-SKY"],
     "TG-FPHYPERBLUE":   ["TG128X3-B", "TG-HYPERBLUE"],
-    # Обратный порядок к TG-FPW: белый первым, чёрный вторым. Заведён 01.09.2026
-    # как самостоятельный артикул (НЕ зависит от FAMILY_PACK_WHITE_FIRST_ENABLED —
-    # первый элемент не TG128X3-B, поэтому _white_first() его не трогает).
-    "TG-FPWB":          ["TG130X3-B", "TG128X3-B"],  # белый + чёрный
     # SKU-костыль: в InSales лишний дефис, в МС — без него
     "TG-130X3-B":       ["TG130X3-B"],
 }
