@@ -48,15 +48,16 @@ def test_categorize_unknown_and_empty():
     assert categorize_payment("") is None
     assert categorize_payment(None) is None
 
-def test_categorize_wallet_is_manual_prepaid():
-    assert categorize_payment("wallet") == "manual_prepaid"
-    assert categorize_payment("Wallet") == "manual_prepaid"
+def test_categorize_wallet_is_prepaid():
+    # 08.09.2026: wallet — это оплата криптой, бесплатной доставки больше не даёт
+    assert categorize_payment("wallet") == "prepaid"
+    assert categorize_payment("Wallet") == "prepaid"
 
 def test_categorize_net_is_manual_prepaid():
     assert categorize_payment("нет") == "manual_prepaid"
 
 def test_categorize_kripta_is_prepaid():
-    # 08.09.2026: крипта больше не даёт бесплатную доставку СДЭК
+    # 08.09.2026: крипта больше не даёт бесплатную доставку СДЭК (как и wallet)
     assert categorize_payment("Крипта") == "prepaid"
     assert categorize_payment("криптовалюта") == "prepaid"
 
