@@ -44,7 +44,7 @@ def test_categorize_nalich_not_cod():
 
 def test_categorize_unknown_and_empty():
     assert categorize_payment("Эвотор") == "prepaid"   # терминал — платная доставка
-    assert categorize_payment("Биткоин") == "prepaid"  # нераспознанная крипта — prepaid
+    assert categorize_payment("Биткоин") == "prepaid"  # крипта — платная доставка
     assert categorize_payment("") is None
     assert categorize_payment(None) is None
 
@@ -55,9 +55,10 @@ def test_categorize_wallet_is_manual_prepaid():
 def test_categorize_net_is_manual_prepaid():
     assert categorize_payment("нет") == "manual_prepaid"
 
-def test_categorize_kripta_is_manual_prepaid():
-    assert categorize_payment("Крипта") == "manual_prepaid"
-    assert categorize_payment("криптовалюта") == "manual_prepaid"
+def test_categorize_kripta_is_prepaid():
+    # 08.09.2026: крипта больше не даёт бесплатную доставку СДЭК
+    assert categorize_payment("Крипта") == "prepaid"
+    assert categorize_payment("криптовалюта") == "prepaid"
 
 
 # --- compute_desired: осталось только обнуление СДЭК ---

@@ -31,11 +31,14 @@ def categorize_payment(payment_str: str | None) -> str | None:
     """Категория оплаты из строки «Способ оплаты» (case-insensitive, с допуском опечаток).
 
     'cod'            — при получении / наложенный
-    'manual_prepaid' — «на карту» / «банковский перевод» / крипта / wallet / «нет»:
+    'manual_prepaid' — «на карту» / «банковский перевод» / wallet / «нет»:
                        предоплата + обнуление СДЭК (доставка бесплатная)
-    'prepaid'        — всё остальное (Эвотор, наличные, онлайн, картой, счёт и т.д.):
+    'prepaid'        — всё остальное (крипта, Эвотор, наличные, онлайн, картой, счёт и т.д.):
                        предоплата БЕЗ обнуления доставки
     None             — пустое значение / None
+
+    ⚠️ Крипта убрана из manual_prepaid 08.09.2026 по решению Кати: доставку при
+    оплате криптой больше за свой счёт не берём.
     """
     if not payment_str:
         return None
@@ -43,7 +46,7 @@ def categorize_payment(payment_str: str | None) -> str | None:
     if "получ" in s or "налож" in s:
         return "cod"
     if ("на карт" in s or "перевод" in s or "банк" in s
-            or "wallet" in s or "нет" in s or "крипт" in s):
+            or "wallet" in s or "нет" in s):
         return "manual_prepaid"
     return "prepaid"
 
