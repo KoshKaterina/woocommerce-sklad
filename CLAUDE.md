@@ -106,6 +106,16 @@ Python 3.12 / FastAPI / structlog. Деплой — Docker (`Dockerfile` коп�
 - `FIELD_RESYNC_ENABLED` — bool, дефолт `true`; отключить — `=false` в `.env`.
 - `.env` гитом не отслеживается — прод-`.env` правится вручную на сервере.
 
+## Прод-окружение: сервер №2 `85.193.91.169`, `/opt/integrations`
+- Контейнер `woo-sklad` поднимается общим `docker-compose.yml` вместе с `amo-fix-fields`. Прокси и
+  исключения приходят из `docker-compose.override.yml` и `/opt/integrations/.env` (`MS_PROXY_URL`,
+  `MS_NO_PROXY`). Эти файлы живут на сервере, не в этом репозитории. Снимок без секретов лежит в
+  `Sunscrypt/amo_fix_fields`, папка `ops/server2-integrations/` - одна копия на оба сервиса.
+- С 15.09.2026 `woo-sklad` ходит в `api.moysklad.ru` напрямую, мимо шлюза `82.97.249.88:18080`: шлюз
+  за утро лёг дважды, и заказы сайта не доезжали до МС. `HTTPS_PROXY` в контейнере остался, но склад
+  внесён в `NO_PROXY` его блока в override.
+- У контейнера нет томов: всё, что сервис держит в памяти, при пересоздании контейнера теряется.
+
 ## Документация
 - `README.md` — обзор, структура, статус, тесты. **Актуален.**
 - `TODO.md` — план/сделано (InSales §1, uCoz §2, алертинг §3, reverse-sync §4).
