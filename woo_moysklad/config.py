@@ -14,7 +14,7 @@ log = get_logger(__name__)
 # править прод-.env при деплое и чтобы старые значения в .env их не перебивали.
 # Секреты (токены, INSALES_API_KEY/PASSWORD) сюда НЕ входят — они только из .env.
 _HARDCODED_DEFAULTS = frozenset({
-    "MS_ATTR_COURIER_COMMENT_ID", "MS_ATTR_YM_CLIENT_ID",
+    "MS_ATTR_COURIER_COMMENT_ID", "MS_ATTR_YM_CLIENT_ID", "MS_ATTR_COUNTERPARTY_TELEGRAM_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
     "MS_PROJECT_INSALES_ID",
@@ -62,10 +62,11 @@ class Config:
     # сквозная аналитика МС → amoCRM → Метрика. Тип поля — string (19-значное число
     # пишем строкой, без потери точности). Захардкожено (поле создано 2026-06).
     MS_ATTR_YM_CLIENT_ID: str = "26b2eac0-6806-11f1-0a80-045b00304eed"
-    # «Телеграм» (string) — ник покупателя «@username» из поля оформления сайта
-    # (meta_data["_billing_telegram"]); дальше amgroup несёт его в amo. Захардкожено.
-    # ⚠️ 15.09.2026 поле в МС ещё не создано: пока UUID пуст, атрибут не пишется.
-    MS_ATTR_TELEGRAM_ID: str = ""
+    # «Телеграм» (string) — доп. поле КОНТРАГЕНТА (не заказа), создано 15.09.2026 по решению
+    # Кати: ник принадлежит человеку. Ник «@username» из поля оформления сайта
+    # (meta_data["_billing_telegram"]); новому контрагенту пишется сразу, существующему —
+    # только в пустое поле. Захардкожено.
+    MS_ATTR_COUNTERPARTY_TELEGRAM_ID: str = "79e2dacf-b10e-11f1-0a80-1075003b0415"
     # ⚠️ 06.08.2026 удалено поле «Доставка» (customentity) вместе со справочником
     # служб доставки и всеми его элементами (MS_ATTR_DELIVERY_SD_ID,
     # MS_CUSTOMENTITY_DELIVERY_SD_ID, MS_DELIVERY_SD_*): вид доставки живёт в услугах

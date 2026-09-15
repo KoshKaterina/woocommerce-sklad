@@ -58,17 +58,17 @@ def test_other_payment_not_paid_and_cdek_delivery_charged():
 
 
 def test_telegram_from_meta():
-    """Ник из поля оформления → NormalizedOrder.telegram в виде «@username»."""
+    """Ник из поля оформления → покупатель (NormalizedCustomer.telegram) в виде «@username»."""
     order = _wc_order("Онлайн оплата")
     order["meta_data"] = [{"key": "_billing_telegram", "value": "https://t.me/durov_team"}]
-    assert normalize_wc_order(order).telegram == "@durov_team"
+    assert normalize_wc_order(order).customer.telegram == "@durov_team"
 
 
 def test_telegram_invalid_dropped():
     """Телефон вместо ника в МС не передаём."""
     order = _wc_order("Онлайн оплата")
     order["meta_data"] = [{"key": "_billing_telegram", "value": "+79991234567"}]
-    assert normalize_wc_order(order).telegram is None
+    assert normalize_wc_order(order).customer.telegram is None
 
 
 def test_bank_transfer_non_cdek_delivery_charged():

@@ -51,6 +51,8 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
                                          billing.get("last_name", "").strip()])),
         phone=billing.get("phone", ""),
         email=billing.get("email", ""),
+        # Ник Телеграма живёт у человека: пишется в доп.поле контрагента, не заказа
+        telegram=_safe("extract_telegram", lambda: extract_telegram(order_data)),
     )
 
     # Товарные позиции
@@ -105,7 +107,6 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
     description = _safe("extract_courier_comment", lambda: extract_courier_comment(order_data))
     promo_code = _safe("extract_promo_code", lambda: extract_promo_code(order_data))
     ym_client_id = _safe("extract_ym_client_id", lambda: extract_ym_client_id(order_data))
-    telegram = _safe("extract_telegram", lambda: extract_telegram(order_data))
 
     # Состояние оплаты: при получении, ручная предоплата и «Другой способ» - отмечает менеджер
     is_cod = "при получении" in payment_title.lower()
@@ -130,7 +131,6 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
         description=description,
         promo_code=promo_code,
         ym_client_id=ym_client_id,
-        telegram=telegram,
         is_paid=is_paid,
         is_cod=is_cod,
     )

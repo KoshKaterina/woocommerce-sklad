@@ -63,6 +63,80 @@ def make_handler(find_result=None, post_result=None, put_result=None):
     return CounterpartyHandler(ms), ms
 
 
+# --- Телеграм в доп. поле контрагента ---
+
+TG_ATTR = "tg-attr-uuid"
+_EXISTING_REAL = {
+    "id": "cp-77",
+    "name": "Иван Петров",
+    "email": "i@x.ru",
+    "companyType": "individual",
+    "meta": {"href": "...", "type": "counterparty"},
+}
+
+
+def make_tg_handler(find_result=None, attr_id=TG_ATTR):
+    ms = MagicMock()
+    ms.find_by_filter.return_value = find_result or []
+    ms.post.return_value = {"id": "new-id", "meta": {"href": "...", "type": "counterparty"}}
+    ms.put.return_value = {}
+    return CounterpartyHandler(ms, telegram_attr_id=attr_id), ms
+
+
+def _tg_values(data):
+    return [a["value"] for a in data.get("attributes", [])
+            if a["meta"]["href"].endswith("/entity/counterparty/metadata/attributes/" + TG_ATTR)]
+
+
+def _billing(telegram="@durov_team"):
+    return {"first_name": "Иван Петров", "phone": "+79099371845", "email": "i@x.ru", "telegram": telegram}
+
+
+def test_telegram_written_to_new_counterparty():
+    """Новый контрагент - ник сразу в доп. поле «Телеграм» (ссылка на поле контрагента, не заказа)."""
+    handler, ms = make_tg_handler(find_result=[])
+    handler.find_or_create(_billing())
+    assert _tg_values(ms.post.call_args[0][1]) == ["@durov_team"]
+
+
+def test_telegram_filled_into_existing_empty_field():
+    """Существующий контрагент без ника - дописываем ник, остальное не трогаем."""
+    handler, ms = make_tg_handler(find_result=[dict(_EXISTING_REAL, attributes=[])])
+    handler.find_or_create(_billing())
+    ms.put.assert_called_once()
+    patch = ms.put.call_args[0][1]
+    assert _tg_values(patch) == ["@durov_team"]
+    assert set(patch) == {"attributes"}
+
+
+def test_telegram_not_overwritten_when_filled():
+    """У контрагента уже есть ник - не перезаписываем (мог поправить менеджер)."""
+    existing = dict(_EXISTING_REAL, attributes=[{"id": TG_ATTR, "value": "@old_nick"}])
+    handler, ms = make_tg_handler(find_result=[existing])
+    handler.find_or_create(_billing())
+    ms.put.assert_not_called()
+
+
+def test_telegram_skipped_without_attr_id_or_value():
+    """UUID поля не задан или ника нет - доп. поле не пишем."""
+    handler, ms = make_tg_handler(find_result=[], attr_id="")
+    handler.find_or_create(_billing())
+    assert "attributes" not in ms.post.call_args[0][1]
+
+    handler, ms = make_tg_handler(find_result=[])
+    handler.find_or_create(_billing(telegram=""))
+    assert "attributes" not in ms.post.call_args[0][1]
+
+
+def test_telegram_from_normalized_customer():
+    """find_or_create_from_normalized несёт customer.telegram."""
+    from woo_moysklad.core.normalized_order import NormalizedCustomer
+    handler, ms = make_tg_handler(find_result=[])
+    handler.find_or_create_from_normalized(
+        NormalizedCustomer(full_name="Иван Петров", phone="+79099371845", email="", telegram="@durov_team"))
+    assert _tg_values(ms.post.call_args[0][1]) == ["@durov_team"]
+
+
 def test_find_existing_counterparty():
     """Контрагент найден по телефону — возвращаем его meta."""
     handler, ms = make_handler(find_result=[{

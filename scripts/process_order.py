@@ -20,7 +20,7 @@ def main(order_id: int):
     print(f"Инициализирую клиентов...")
     ms_client = MoySkladClient(config)
     woo_client = WooCommerceClient(config)
-    cp_handler = CounterpartyHandler(ms_client)
+    cp_handler = CounterpartyHandler(ms_client, telegram_attr_id=config.MS_ATTR_COUNTERPARTY_TELEGRAM_ID)
     pm = ProductMatcher(ms_client)
     order_processor = OrderProcessor(config, ms_client, cp_handler, pm)
 

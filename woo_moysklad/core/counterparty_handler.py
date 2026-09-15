@@ -4,6 +4,7 @@ import re
 
 from woo_moysklad.exceptions import CounterpartyError
 from woo_moysklad.logger import get_logger
+from woo_moysklad.ms_client import MS_BASE_URL
 
 log = get_logger(__name__)
 
@@ -78,8 +79,10 @@ def normalize_phone(phone: str) -> str:
 class CounterpartyHandler:
     """Поиск и создание контрагентов в Мой Склад по телефону из billing."""
 
-    def __init__(self, ms_client):
+    def __init__(self, ms_client, telegram_attr_id: str = ""):
         self.ms_client = ms_client
+        # UUID доп. поля контрагента «Телеграм» (15.09.2026). Пусто - ник не пишем.
+        self.telegram_attr_id = telegram_attr_id
 
     def find_or_create_from_normalized(self, customer) -> dict:
         """Найти или создать контрагента из NormalizedCustomer."""
@@ -87,8 +90,27 @@ class CounterpartyHandler:
             "first_name": customer.full_name,
             "phone": customer.phone,
             "email": customer.email,
+            "telegram": getattr(customer, "telegram", None) or "",
         }
         return self.find_or_create(billing)
+
+    def _telegram_attribute(self, telegram: str) -> dict:
+        """Доп. поле контрагента «Телеграм» со значением для POST/PUT."""
+        return {
+            "meta": {
+                "href": f"{MS_BASE_URL}/entity/counterparty/metadata/attributes/{self.telegram_attr_id}",
+                "type": "attributemetadata",
+                "mediaType": "application/json",
+            },
+            "value": telegram,
+        }
+
+    def _has_telegram(self, counterparty: dict) -> bool:
+        """У контрагента уже заполнен «Телеграм»."""
+        for attr in counterparty.get("attributes") or []:
+            if attr.get("id") == self.telegram_attr_id:
+                return bool(str(attr.get("value") or "").strip())
+        return False
 
     def _build_enrichment_patch(self, counterparty: dict, full_name: str, email: str) -> dict:
         """Поля для дозаполнения существующего контрагента данными из заказа.
@@ -124,6 +146,8 @@ class CounterpartyHandler:
             full_name = billing.get("first_name", "").strip()
             email = billing.get("email", "").strip()
             phone = billing.get("phone", "").strip()
+            telegram = (billing.get("telegram") or "").strip()
+            write_telegram = bool(telegram and self.telegram_attr_id)
 
             if not phone:
                 raise CounterpartyError("Телефон не указан в заказе")
@@ -147,6 +171,10 @@ class CounterpartyHandler:
                 # Дозаполняем имя/почту из заказа (внешние системы, напр. amoCRM,
                 # часто создают контрагента с именем-телефоном и без email).
                 patch = self._build_enrichment_patch(counterparty, full_name, email)
+                # Ник Телеграма - только в пустое поле: заполненное мог поправить менеджер,
+                # а по нику в amo склеиваются контакты
+                if write_telegram and not self._has_telegram(counterparty):
+                    patch["attributes"] = [self._telegram_attribute(telegram)]
                 if counterparty.get("companyType") != "individual":
                     patch["companyType"] = "individual"
                 if patch:
@@ -173,6 +201,8 @@ class CounterpartyHandler:
                 new_cp_data["middleName"] = middle_name
             if email:
                 new_cp_data["email"] = email
+            if write_telegram:
+                new_cp_data["attributes"] = [self._telegram_attribute(telegram)]
 
             result = self.ms_client.post("entity/counterparty", new_cp_data)
             log.info("Контрагент создан", name=full_name, id=result["id"])
