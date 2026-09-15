@@ -8,7 +8,9 @@ from woo_moysklad.core.field_mappers import (
     extract_courier_comment,
     extract_promo_code,
     extract_pvz_code,
+    extract_telegram,
     extract_ym_client_id,
+    is_manual_payment_mark,
     is_manual_prepayment,
     is_office_pickup,
     map_delivery_sd,
@@ -103,10 +105,11 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
     description = _safe("extract_courier_comment", lambda: extract_courier_comment(order_data))
     promo_code = _safe("extract_promo_code", lambda: extract_promo_code(order_data))
     ym_client_id = _safe("extract_ym_client_id", lambda: extract_ym_client_id(order_data))
+    telegram = _safe("extract_telegram", lambda: extract_telegram(order_data))
 
-    # Состояние оплаты
+    # Состояние оплаты: при получении, ручная предоплата и «Другой способ» - отмечает менеджер
     is_cod = "при получении" in payment_title.lower()
-    is_paid = order_data.get("status") == "processing" and not is_cod and not manual_prepayment
+    is_paid = order_data.get("status") == "processing" and not is_manual_payment_mark(payment_title)
 
     order_id = str(order_data["id"])
 
@@ -127,6 +130,7 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
         description=description,
         promo_code=promo_code,
         ym_client_id=ym_client_id,
+        telegram=telegram,
         is_paid=is_paid,
         is_cod=is_cod,
     )

@@ -211,6 +211,16 @@ def test_woo_should_mark_paid_skips_manual():
     }) is False
 
 
+def test_woo_should_mark_paid_skips_other_payment():
+    """WC: «Другой способ» — оплату отмечает менеджер, даже когда amo довёл заказ до completed."""
+    adapter = WooSourceAdapter(MagicMock(), MagicMock())
+    for status in ("processing", "completed"):
+        assert adapter.should_mark_paid({
+            "status": status,
+            "payment_method_title": "Другой способ",
+        }) is False
+
+
 def test_woo_should_mark_paid_skips_non_processing():
     """WC: любой статус кроме processing/completed — не маркируем."""
     adapter = WooSourceAdapter(MagicMock(), MagicMock())

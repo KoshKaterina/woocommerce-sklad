@@ -127,6 +127,9 @@ def map_payment_type(payment_method_title: str) -> str | None:
         return "prepaid"
     if "при получении" in lower:
         return "noncash"
+    if is_other_payment(payment_method_title):
+        # Способ согласует менеджер - типа приёма платежа нет, и это не ошибка
+        return None
 
     log.warning("Неизвестный способ оплаты, тип приёма платежа не определён",
                 payment_method_title=payment_method_title)
@@ -145,6 +148,63 @@ def is_manual_prepayment(payment_method_title: str) -> bool:
     """
     lower = payment_method_title.lower()
     return "на карт" in lower or "банковский перевод" in lower
+
+
+def is_other_payment(payment_method_title: str) -> bool:
+    """«Другой способ» (способ оплаты сайта, заведён 15.09.2026).
+
+    Как клиент заплатит, менеджер согласует с ним сам: перевод, криптовалюта, счёт.
+    Заказ не оплачен, пока менеджер не отметит оплату; доставку СДЭК не обнуляем.
+    """
+    return "другой способ" in (payment_method_title or "").lower()
+
+
+def is_manual_payment_mark(payment_method_title: str) -> bool:
+    """Оплату такого заказа отмечает менеджер, интеграция автоматом не отмечает.
+
+    Одно правило на все входы: создание заказа (is_paid), вебхук «заказ изменён»
+    и сверка (should_mark_paid). До 15.09.2026 условие жило тремя копиями, и новый
+    способ оплаты попал бы в «оплачен» в любой из них.
+
+    "При получении"                    → True (деньги возьмут при вручении)
+    "На карту", "Банковский перевод"   → True (ручная предоплата)
+    "Другой способ"                    → True (способ согласует менеджер)
+    "Онлайн-оплата" и прочее           → False (оплачено на сайте)
+    """
+    title = payment_method_title or ""
+    return ("при получении" in title.lower()
+            or is_manual_prepayment(title)
+            or is_other_payment(title))
+
+
+# Ник Телеграма: 5-32 символа, латиница, цифры и «_», первый символ - буква
+_TELEGRAM_USERNAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{4,31}")
+_TELEGRAM_LINK_PREFIX = re.compile(r"^(?:https?://)?(?:www\.)?(?:t|telegram)\.me/", re.IGNORECASE)
+# Ключи меты заказа WC: поле оформления billing_telegram Woo сохраняет как «_billing_telegram»
+_TELEGRAM_META_KEYS = ("_billing_telegram", "billing_telegram")
+
+
+def normalize_telegram(raw) -> str | None:
+    """Привести ник к виду «@username». Не ник (телефон, мусор, пусто) → None.
+
+    «t.me/name», «https://t.me/name/», «name», « @name » → «@name».
+    В таком же виде ник пишет в amo Wazzup (поле контакта TelegramUsername_WZ).
+    """
+    value = _TELEGRAM_LINK_PREFIX.sub("", str(raw or "").strip())
+    value = value.strip().strip("/").lstrip("@").strip()
+    return f"@{value}" if _TELEGRAM_USERNAME.fullmatch(value) else None
+
+
+def extract_telegram(order_data: dict) -> str | None:
+    """Ник Телеграма покупателя из meta_data заказа WC (необязательное поле оформления).
+
+    Невалидное значение в МС не передаём: дальше оно уедет в карточку контакта amo,
+    а по нику там склеиваются контакты, и чужой или кривой ник склеит разных людей.
+    """
+    for m in order_data.get("meta_data") or []:
+        if m.get("key") in _TELEGRAM_META_KEYS:
+            return normalize_telegram(m.get("value"))
+    return None
 
 
 def extract_courier_comment(order_data: dict) -> str | None:

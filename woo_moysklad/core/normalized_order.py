@@ -53,6 +53,7 @@ class NormalizedOrder:
     description: str | None = None           # Комментарий покупателя
     promo_code: str | None = None
     ym_client_id: str | None = None          # ClientID Яндекс.Метрики (WC meta_data)
+    telegram: str | None = None              # Ник Телеграма «@username» (WC meta_data)
 
     # Переопределения конфига (None = использовать дефолт)
     organization_id: str | None = None

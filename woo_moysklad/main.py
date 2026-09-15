@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from woo_moysklad.config import load_config
 from woo_moysklad.core.counterparty_handler import CounterpartyHandler
-from woo_moysklad.core.field_mappers import is_manual_prepayment
+from woo_moysklad.core.field_mappers import is_manual_payment_mark
 from woo_moysklad.exceptions import OrderProcessingError
 from woo_moysklad.insales.client import InSalesClient
 from woo_moysklad.logger import get_logger
@@ -217,10 +217,10 @@ async def webhook_order(
                         order_id=order_id, status=order_data.get("status"))
             action = "order.created"
         elif order_data.get("status") == "processing":
-            # COD ("при получении") и ручную предоплату ("На карту", "Банковский
-            # перевод") не помечаем — деньги ещё не получены, ждём отметки менеджера
+            # COD ("при получении"), ручную предоплату ("На карту", "Банковский
+            # перевод") и "Другой способ" не помечаем — ждём отметки менеджера
             payment_title = order_data.get("payment_method_title", "")
-            if "при получении" in payment_title.lower() or is_manual_prepayment(payment_title):
+            if is_manual_payment_mark(payment_title):
                 log.info("Игнорируем mark_paid для ручной оплаты",
                          order_id=order_id, payment_method=payment_title)
                 return {"status": "ignored", "reason": "manual_payment_not_prepaid"}

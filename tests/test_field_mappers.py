@@ -14,7 +14,11 @@ from woo_moysklad.core.field_mappers import (
     extract_promo_code,
     extract_ym_client_id,
     extract_pvz_code,
+    extract_telegram,
+    is_manual_payment_mark,
     is_manual_prepayment,
+    is_other_payment,
+    normalize_telegram,
     map_delivery_sd,
     map_delivery_type,
     map_payment_type,
@@ -173,6 +177,63 @@ def test_is_manual_prepayment_cod():
 def test_is_manual_prepayment_online():
     # "Онлайн оплата" — онлайн-касса, оплачивается сразу, не ручная предоплата
     assert is_manual_prepayment("Онлайн оплата") is False
+
+def test_is_manual_prepayment_other_is_not_prepayment():
+    # «Другой способ» НЕ ручная предоплата: иначе обнулилась бы доставка СДЭК
+    assert is_manual_prepayment("Другой способ") is False
+
+
+# --- «Другой способ» и общее правило «оплату отмечает менеджер» ---
+
+def test_map_payment_type_other_without_warning(caplog):
+    assert map_payment_type("Другой способ") is None
+
+def test_is_other_payment():
+    assert is_other_payment("Другой способ") is True
+    assert is_other_payment("другой способ") is True
+    assert is_other_payment("Онлайн-оплата") is False
+    assert is_other_payment("") is False
+    assert is_other_payment(None) is False
+
+@pytest.mark.parametrize("title", ["При получении", "На карту", "Банковский перевод", "Другой способ"])
+def test_is_manual_payment_mark_true(title):
+    assert is_manual_payment_mark(title) is True
+
+@pytest.mark.parametrize("title", ["Онлайн-оплата", "Онлайн оплата", "", None])
+def test_is_manual_payment_mark_false(title):
+    assert is_manual_payment_mark(title) is False
+
+
+# --- Телеграм ---
+
+@pytest.mark.parametrize("raw, expected", [
+    ("@durov_team", "@durov_team"),
+    ("durov_team", "@durov_team"),
+    ("  @durov_team  ", "@durov_team"),
+    ("t.me/durov_team", "@durov_team"),
+    ("https://t.me/durov_team/", "@durov_team"),
+    ("http://www.telegram.me/durov_team", "@durov_team"),
+    ("@abcd", None),                       # короче 5 символов
+    ("@" + "a" * 33, None),                # длиннее 32
+    ("@1durov", None),                     # начинается с цифры
+    ("+7 999 123-45-67", None),            # телефон
+    ("@дуров", None),                      # кириллица
+    ("@durov team", None),                 # пробел внутри
+    ("", None),
+    (None, None),
+])
+def test_normalize_telegram(raw, expected):
+    assert normalize_telegram(raw) == expected
+
+def test_extract_telegram_from_billing_meta():
+    order = {"meta_data": [{"key": "ym_client_id", "value": "1"},
+                           {"key": "_billing_telegram", "value": "t.me/durov_team"}]}
+    assert extract_telegram(order) == "@durov_team"
+
+def test_extract_telegram_invalid_or_absent():
+    assert extract_telegram({"meta_data": [{"key": "_billing_telegram", "value": "89991234567"}]}) is None
+    assert extract_telegram({"meta_data": []}) is None
+    assert extract_telegram({}) is None
 
 
 # --- extract_courier_comment ---

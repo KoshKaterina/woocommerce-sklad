@@ -307,6 +307,8 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
         # ClientID Яндекс.Метрики (string) — для сквозной аналитики; нет → не пишем
         self._add_attr(attributes, cfg.MS_ATTR_YM_CLIENT_ID, order.ym_client_id)
+        # Ник Телеграма «@username» (string); нет, невалиден или UUID не задан → не пишем
+        self._add_attr(attributes, cfg.MS_ATTR_TELEGRAM_ID, order.telegram)
 
         return attributes
 

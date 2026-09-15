@@ -48,6 +48,29 @@ def test_online_cdek_delivery_charged_and_paid():
     assert n.is_paid is True
 
 
+def test_other_payment_not_paid_and_cdek_delivery_charged():
+    """«Другой способ» + СДЭК, статус processing → НЕ оплачен, доставка платная."""
+    n = normalize_wc_order(_wc_order("Другой способ"))
+    assert n.is_paid is False
+    assert n.is_cod is False
+    assert _delivery_price(n) == 50000
+    assert n.payment_title == "Другой способ"
+
+
+def test_telegram_from_meta():
+    """Ник из поля оформления → NormalizedOrder.telegram в виде «@username»."""
+    order = _wc_order("Онлайн оплата")
+    order["meta_data"] = [{"key": "_billing_telegram", "value": "https://t.me/durov_team"}]
+    assert normalize_wc_order(order).telegram == "@durov_team"
+
+
+def test_telegram_invalid_dropped():
+    """Телефон вместо ника в МС не передаём."""
+    order = _wc_order("Онлайн оплата")
+    order["meta_data"] = [{"key": "_billing_telegram", "value": "+79991234567"}]
+    assert normalize_wc_order(order).telegram is None
+
+
 def test_bank_transfer_non_cdek_delivery_charged():
     """Банковский перевод, но не СДЭК → доставка платная (обнуление только для СДЭК)."""
     n = normalize_wc_order(_wc_order("Банковский перевод", delivery_title="Курьер по Москве"))

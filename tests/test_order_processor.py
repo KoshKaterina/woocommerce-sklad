@@ -125,6 +125,31 @@ def test_ym_client_id_absent_when_no_meta(sample_order):
     assert not [a for a in attrs if "attr-ym" in a["meta"]["href"]]
 
 
+def test_telegram_in_body(sample_order):
+    """Ник из meta_data заказа WC → атрибут «Телеграм» в теле, в виде «@username»."""
+    sample_order["meta_data"] = [{"key": "_billing_telegram", "value": "t.me/durov_team"}]
+    processor, ms, cp, pm = make_processor()
+    processor.config.MS_ATTR_TELEGRAM_ID = "attr-tg"
+    processor.process_order(sample_order)
+
+    attrs = ms.post.call_args[0][1]["attributes"]
+    tg = [a for a in attrs if "attr-tg" in a["meta"]["href"]]
+    assert len(tg) == 1
+    assert tg[0]["value"] == "@durov_team"
+
+
+def test_telegram_skipped_while_field_uuid_empty(sample_order):
+    """Поле в МС ещё не заведено (UUID пуст) → атрибут не пишется, заказ создаётся."""
+    sample_order["meta_data"] = [{"key": "_billing_telegram", "value": "@durov_team"}]
+    processor, ms, cp, pm = make_processor()
+    processor.config.MS_ATTR_TELEGRAM_ID = ""
+    processor.process_order(sample_order)
+
+    ms.post.assert_called_once()
+    attrs = ms.post.call_args[0][1]["attributes"]
+    assert not [a for a in attrs if a.get("value") == "@durov_team"]
+
+
 def test_office_pickup_uses_showroom_state(sample_order):
     """Самовывоз из офиса Sunscrypt (local_pickup) → статус «новый лид 1»."""
     sample_order["shipping_lines"] = [
