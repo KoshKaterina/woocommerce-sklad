@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from woo_moysklad.exceptions import MoySkladAPIError
+from woo_moysklad.exceptions import MoySkladAPIError, MoySkladConnectionError
 from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
@@ -102,13 +102,13 @@ class MoySkladClient:
                 is_timeout = "timed out" in str(e).lower() or "timeout" in str(e).lower()
                 if is_mutating and is_timeout:
                     log.error("MS API таймаут при POST/PUT, ретрай не безопасен", error=str(e), method=method, path=path)
-                    raise MoySkladAPIError(f"Таймаут при {method} {path} (ретрай отключён): {e}")
+                    raise MoySkladConnectionError(f"Таймаут при {method} {path} (ретрай отключён): {e}") from e
                 if attempt < max_retries - 1:
                     backoff = 2 ** attempt
                     log.warning("MS API ошибка соединения, ретрай", error=str(e), backoff=backoff)
                     time.sleep(backoff)
                     continue
-                raise MoySkladAPIError(f"Ошибка соединения с МС: {e}")
+                raise MoySkladConnectionError(f"Ошибка соединения с МС: {e}") from e
 
         raise MoySkladAPIError("Исчерпаны попытки запроса к МС")
 

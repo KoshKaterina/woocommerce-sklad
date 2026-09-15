@@ -8,7 +8,7 @@ Python 3.12 / FastAPI / structlog. Деплой — Docker (`Dockerfile` коп�
 запускает `uvicorn woo_moysklad.main:app`).
 
 ## Команды
-- Тесты: `.venv/bin/python3 -m pytest tests/ -q` (сейчас 208, должны быть зелёными).
+- Тесты: `.venv/bin/python3 -m pytest tests/ -q` (сейчас 231, должны быть зелёными).
 - Ручной прогон заказа: `python scripts/process_order.py <id>` (WC),
   `python scripts/process_insales_order.py <номер>` (InSales),
   `python scripts/resync_order.py --order <N> --dry-run` (reverse-sync 1 заказа).
@@ -42,6 +42,14 @@ Python 3.12 / FastAPI / structlog. Деплой — Docker (`Dockerfile` коп�
 Поля существующих заказов НЕ трогает. Поиск в МС — по доп.полю «Номер заказа на сайте».
 Верхняя граница окна отстаёт на `RECONCILIATION_FRESH_SKEW` (2 мин): свежие заказы —
 забота вебхука, эффективное окно 7 минут.
+
+**Догонка после сбоя (15.09.2026).** Если проход источника не закрыл окно из-за связи (заказы не
+получены или заказ упал на `MoySkladConnectionError` / `requests` ConnectionError, Timeout — по
+цепочке причин, `is_connection_failure`), следующий проход начинает окно с непроверенного места,
+не глубже `RECONCILIATION_MAX_CATCHUP` (6 ч). Ошибка данных окно не держит. Первая сверка после
+`schedule()` смотрит на `RECONCILIATION_STARTUP_LOOKBACK` (30 мин) назад: память в процессе, томов
+у контейнера нет. Reverse-sync всегда на обычном окне. Разбор и риски — `KNOWN_ISSUES.md`.
+Клиент МС бросает `MoySkladConnectionError` (наследник `MoySkladAPIError`) на обрыве и таймауте.
 
 ## Замок по номеру заказа (`core/order_locks.py`, 27.08.2026)
 Вебхук (поток `asyncio.to_thread`) и сверка (поток `threading.Timer`) ходят в один
