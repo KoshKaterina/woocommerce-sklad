@@ -107,6 +107,16 @@ def test_disabled_mode_ignores_even_invalid_snapshot_and_uses_old_sku():
     assert ms.find_by_filter.call_args_list[0].args == ("product", "article=CURRENT")
 
 
+def test_self_parent_snapshot_fails_before_external_calls():
+    item = line(90, "SELF", "Impossible child", preorder=True, variation_id=90)
+    processor, ms, cp = setup_processor()
+    with pytest.raises(ValueError, match="своим родителем"):
+        processor.process_order(order(item))
+    ms.find_by_filter.assert_not_called()
+    ms.post.assert_not_called()
+    cp.find_or_create_from_normalized.assert_not_called()
+
+
 @pytest.mark.parametrize("mutation", [
     lambda items: items[1].update(meta_data=[]),
     lambda items: items[0]["meta_data"].append(deepcopy(items[0]["meta_data"][0])),

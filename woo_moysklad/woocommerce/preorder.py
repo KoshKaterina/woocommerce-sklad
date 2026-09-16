@@ -41,6 +41,8 @@ def read_preorder_snapshot(item: dict) -> dict | None:
         raise ValueError(f"Woo line {PREORDER_META_KEY}: preorder должен быть bool")
     if not _positive_int(value["product_id"]) or not _nonnegative_int(value["variation_id"]):
         raise ValueError(f"Woo line {PREORDER_META_KEY}: неверный product/variation ID")
+    if value["variation_id"] and value["variation_id"] == value["product_id"]:
+        raise ValueError(f"Woo line {PREORDER_META_KEY}: вариация не может быть своим родителем")
     if not _positive_int(value["quantity"]):
         raise ValueError(f"Woo line {PREORDER_META_KEY}: неверное количество")
     if not isinstance(value["sku"], str):
