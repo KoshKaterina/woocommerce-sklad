@@ -53,8 +53,8 @@ def preorder_attributes(body):
 
 @pytest.mark.parametrize("preorders, expected", [
     ([False], "Тип: Заказ\nОжидаемые позиции: нет"),
-    ([True], "Тип: Предзаказ\nОжидаемые позиции:\n- Tangem Red [SKU: TR; Woo товар #12, вариация #13] × 2"),
-    ([False, True], "Тип: Предзаказ\nОжидаемые позиции:\n- Tangem Blue [SKU: TB; Woo товар #14] × 1"),
+    ([True], "Тип: Предзаказ\nОжидаемые позиции:\n- Tangem Red [SKU: TR] × 2"),
+    ([False, True], "Тип: Предзаказ\nОжидаемые позиции:\n- Tangem Blue [SKU: TB] × 1"),
 ])
 def test_order_type_and_exact_waiting_lines(preorders, expected):
     products = [line(12, "TR", "Tangem Red", preorder=preorders[0], qty=2, variation_id=13)]
@@ -65,6 +65,8 @@ def test_order_type_and_exact_waiting_lines(preorders, expected):
     ms.post.assert_called_once()
     body = ms.post.call_args.args[1]
     assert preorder_attributes(body) == [expected]
+    assert "Woo товар #" not in preorder_attributes(body)[0]
+    assert "вариация #" not in preorder_attributes(body)[0]
     assert body["description"] == "Комментарий покупателя"
     assert len(body["positions"]) == len(products)
     assert all("courier" not in attr["meta"]["href"] for attr in body["attributes"])
@@ -144,6 +146,6 @@ def test_video_review_split_is_existing_exception_not_preorder_split():
     assert preorder_attributes(regular_body) == ["Тип: Заказ\nОжидаемые позиции: нет"]
     assert preorder_attributes(opened_body) == [
         "Тип: Предзаказ\nОжидаемые позиции:\n"
-        "- Blue из видеообзора [SKU: TB-1; Woo товар #14] × 1"]
+        "- Blue из видеообзора [SKU: TB-1] × 1"]
     assert regular_body["store"]["meta"]["id"] == "regular-store"
     assert opened_body["store"]["meta"]["id"] == "opened-store"

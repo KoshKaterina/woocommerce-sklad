@@ -346,11 +346,7 @@ class OrderProcessor:
 
         details = []
         for item in waiting:
-            identity = f"Woo товар #{item.product_id}"
-            if item.variation_id:
-                identity += f", вариация #{item.variation_id}"
-            details.append(f"- {one_line(item.title)} [SKU: {one_line(item.sku)}; "
-                           f"{identity}] × {item.quantity}")
+            details.append(f"- {one_line(item.title)} [SKU: {one_line(item.sku)}] × {item.quantity}")
         return "Тип: Предзаказ\nОжидаемые позиции:\n" + "\n".join(details)
 
     def _build_body_from_normalized(self, *, agent_meta, store_id, positions,
