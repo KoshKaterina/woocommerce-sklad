@@ -24,6 +24,7 @@ from woo_moysklad.core.normalized_order import (
     NormalizedLineItem,
     NormalizedOrder,
 )
+from woo_moysklad.woocommerce.preorder import read_order_preorders
 
 log = get_logger(__name__)
 
@@ -37,7 +38,7 @@ def _safe(name: str, func):
         return None
 
 
-def normalize_wc_order(order_data: dict) -> NormalizedOrder:
+def normalize_wc_order(order_data: dict, *, preorder_enabled: bool = False) -> NormalizedOrder:
     """Преобразовать сырой заказ WooCommerce в NormalizedOrder."""
     billing = order_data.get("billing", {})
     payment_title = order_data.get("payment_method_title", "")
@@ -57,12 +58,19 @@ def normalize_wc_order(order_data: dict) -> NormalizedOrder:
 
     # Товарные позиции
     line_items = []
-    for item in order_data.get("line_items", []):
+    raw_items = order_data.get("line_items", [])
+    # Выключенный режим полностью игнорирует служебную мету, включая старые
+    # и некорректные значения: старый поток не зависит от нового producer.
+    snapshots = read_order_preorders(raw_items) if preorder_enabled else [None] * len(raw_items)
+    for item, snapshot in zip(raw_items, snapshots):
         line_items.append(NormalizedLineItem(
-            sku=item.get("sku", ""),
+            sku=snapshot["sku"] if snapshot is not None else item.get("sku", ""),
             title=item.get("name", ""),
             price_cents=round(float(item.get("price", 0)) * 100),
             quantity=int(item.get("quantity", 1)),
+            preorder=snapshot["preorder"] if snapshot is not None else None,
+            product_id=snapshot["product_id"] if snapshot is not None else None,
+            variation_id=snapshot["variation_id"] if snapshot is not None else None,
         ))
 
     # Услуги доставки: обнуляем цену только при ручной предоплате (на карту /

@@ -21,6 +21,9 @@ class NormalizedLineItem:
     title: str
     price_cents: int        # Цена в копейках (финальная, после скидок)
     quantity: int
+    preorder: bool | None = None  # None = старый заказ без line snapshot
+    product_id: int | None = None
+    variation_id: int | None = None
 
 
 @dataclass

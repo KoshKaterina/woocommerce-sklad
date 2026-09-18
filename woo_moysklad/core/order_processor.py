@@ -61,7 +61,8 @@ class OrderProcessor:
         Обратная совместимость: reconciliation.py и main.py вызывают этот метод.
         """
         from woo_moysklad.woocommerce.normalizer import normalize_wc_order
-        normalized = normalize_wc_order(order_data)
+        normalized = normalize_wc_order(
+            order_data, preorder_enabled=bool(self.config.MS_ATTR_PREORDER_SUMMARY_ID))
         return self.process_normalized_order(normalized)
 
     def process_insales_order(self, order_data: dict) -> list[dict]:
@@ -155,6 +156,14 @@ class OrderProcessor:
         """Обработка заказа, номер которого уже занят замком."""
         log.info("Обработка заказа", source=order.source, order_id=order.order_id)
 
+        preorder_enabled = bool(self.config.MS_ATTR_PREORDER_SUMMARY_ID) and order.source == "woocommerce"
+        has_snapshot = preorder_enabled and any(item.preorder is not None for item in order.line_items)
+        if has_snapshot and not all(type(item.preorder) is bool for item in order.line_items):
+            raise OrderProcessingError("Неполный снимок предзаказа: заказ не передан в МС")
+        if preorder_enabled and not has_snapshot:
+            log.warning("Признак предзаказа неизвестен: Woo заказ без снимков, поле МС не заполняем",
+                        order_id=order.order_id)
+
         # --- 1. Контрагент ---
         try:
             agent_meta = self.cp_handler.find_or_create_from_normalized(order.customer)
@@ -165,6 +174,10 @@ class OrderProcessor:
         # --- 2. Позиции ---
         pos = self.pm.build_positions_from_normalized(
             order.line_items, order.delivery_services)
+
+        if has_snapshot and (len(pos.get("regular_lines", [])) +
+                             len(pos.get("opened_lines", []))) != len(order.line_items):
+            raise OrderProcessingError("Не все товары сопоставлены с МС: список предзаказа неполон")
 
         regular = pos["regular"]
         opened = pos["opened"]
@@ -199,23 +212,27 @@ class OrderProcessor:
                 "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_ID,
                 "positions": regular + services,
+                "source_lines": pos.get("regular_lines", []),
             })
             order_specs.append({
                 "order_number": f"{order.order_number}_1",
                 "store_id": cfg.MS_STORE_OPENED_ID or cfg.MS_STORE_ID,
                 "positions": opened,
+                "source_lines": pos.get("opened_lines", []),
             })
         elif has_opened:
             order_specs.append({
                 "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_OPENED_ID or cfg.MS_STORE_ID,
                 "positions": opened + services,
+                "source_lines": pos.get("opened_lines", []),
             })
         else:
             order_specs.append({
                 "order_number": order.order_number,
                 "store_id": cfg.MS_STORE_ID,
                 "positions": regular + services,
+                "source_lines": pos.get("regular_lines", []),
             })
 
         # --- 4. Создание каждого заказа ---
@@ -264,6 +281,7 @@ class OrderProcessor:
         attributes = self._build_attributes_from_normalized(
             order_number=order_number,
             order=order,
+            source_lines=spec["source_lines"],
         )
 
         # Тело запроса
@@ -287,7 +305,7 @@ class OrderProcessor:
                 f"Ошибка МС при создании заказа #{order_number}: {e}") from e
 
     def _build_attributes_from_normalized(self, *, order_number,
-                                          order: NormalizedOrder) -> list:
+                                          order: NormalizedOrder, source_lines: list) -> list:
         """Собрать список доп. полей из NormalizedOrder."""
         attributes = []
         cfg = self.config
@@ -309,7 +327,27 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_YM_CLIENT_ID, order.ym_client_id)
         # Ник Телеграма здесь НЕ пишем: он живёт у контрагента (CounterpartyHandler)
 
+        if (order.source == "woocommerce" and cfg.MS_ATTR_PREORDER_SUMMARY_ID
+                and source_lines and all(type(item.preorder) is bool for item in source_lines)):
+            self._add_attr(attributes, cfg.MS_ATTR_PREORDER_SUMMARY_ID,
+                           self._preorder_summary(source_lines))
+
         return attributes
+
+    @staticmethod
+    def _preorder_summary(lines: list) -> str:
+        """Тип и точные ожидаемые строки заказа, без урезания длинного списка."""
+        waiting = [item for item in lines if item.preorder]
+        if not waiting:
+            return "Тип: Заказ\nОжидаемые позиции: нет"
+
+        def one_line(value):
+            return " ".join(str(value).split())
+
+        details = []
+        for item in waiting:
+            details.append(f"- {one_line(item.title)} [SKU: {one_line(item.sku)}] × {item.quantity}")
+        return "Тип: Предзаказ\nОжидаемые позиции:\n" + "\n".join(details)
 
     def _build_body_from_normalized(self, *, agent_meta, store_id, positions,
                                     attributes, order: NormalizedOrder) -> dict:

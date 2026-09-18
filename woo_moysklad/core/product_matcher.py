@@ -107,6 +107,8 @@ class ProductMatcher:
         regular = []
         opened = []
         services = []
+        regular_lines = []
+        opened_lines = []
 
         for item in line_items:
             product_meta, is_opened = self.find_product(item.sku, item.title)
@@ -123,8 +125,10 @@ class ProductMatcher:
 
             if is_opened:
                 opened.append(position)
+                opened_lines.append(item)
             else:
                 regular.append(position)
+                regular_lines.append(item)
 
         for svc in delivery_services:
             service_meta = self.find_or_create_service(svc.name)
@@ -139,4 +143,5 @@ class ProductMatcher:
                 "assortment": service_meta,
             })
 
-        return {"regular": regular, "opened": opened, "services": services}
+        return {"regular": regular, "opened": opened, "services": services,
+                "regular_lines": regular_lines, "opened_lines": opened_lines}
