@@ -15,6 +15,8 @@ log = get_logger(__name__)
 # Секреты (токены, INSALES_API_KEY/PASSWORD) сюда НЕ входят — они только из .env.
 _HARDCODED_DEFAULTS = frozenset({
     "MS_ATTR_COURIER_COMMENT_ID", "MS_ATTR_YM_CLIENT_ID", "MS_ATTR_COUNTERPARTY_TELEGRAM_ID",
+    "MS_ATTR_ORDER_TYPE_ID", "MS_DICT_ORDER_TYPE_ID",
+    "MS_DICT_ORDER_TYPE_ORDER_ID", "MS_DICT_ORDER_TYPE_PREORDER_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
     "MS_PROJECT_INSALES_ID",
@@ -70,6 +72,16 @@ class Config:
     # (meta_data["_billing_telegram"]); новому контрагенту пишется сразу, существующему —
     # только в пустое поле. Захардкожено.
     MS_ATTR_COUNTERPARTY_TELEGRAM_ID: str = "79e2dacf-b10e-11f1-0a80-1075003b0415"
+    # «Тип заявки» (customentity) — доп. поле ЗАКАЗА, заведено 18.09.2026 по решению Кати
+    # вместе со своим справочником. Его читает сторонний мост amgroup и кладёт значение в
+    # одноимённое поле сделки amoCRM: до этого мост всегда писал туда «Заказ», а «Предзаказ»
+    # менеджеры проставляли руками, иногда спустя часы (разбор — WORKLOG.md, 18.09.2026).
+    # В справочнике ровно два значения: резерв у нас отдельная сущность, а не тип заявки.
+    # Захардкожено по образцу соседей выше — поля наши, от аккаунта не зависят и не меняются.
+    MS_ATTR_ORDER_TYPE_ID: str = "895b4791-b344-11f1-0a80-1b9e0028c446"
+    MS_DICT_ORDER_TYPE_ID: str = "7706b36b-b344-11f1-0a80-1c6f0026b459"
+    MS_DICT_ORDER_TYPE_ORDER_ID: str = "804465e9-b344-11f1-0a80-107d0028b661"
+    MS_DICT_ORDER_TYPE_PREORDER_ID: str = "80706b9d-b344-11f1-0a80-107d0028b67a"
     # ⚠️ 06.08.2026 удалено поле «Доставка» (customentity) вместе со справочником
     # служб доставки и всеми его элементами (MS_ATTR_DELIVERY_SD_ID,
     # MS_CUSTOMENTITY_DELIVERY_SD_ID, MS_DELIVERY_SD_*): вид доставки живёт в услугах

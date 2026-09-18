@@ -29,11 +29,15 @@ def order(*items):
             "shipping_lines": []}
 
 
-def setup_processor(*, enabled=True, existing=None):
+def setup_processor(*, enabled=True, existing=None, order_type=True):
     cfg = Config(MS_ATTR_PREORDER_SUMMARY_ID="preorder-test-field" if enabled else "",
                  MS_ORGANIZATION_ID="org", MS_STORE_ID="regular-store",
                  MS_STORE_OPENED_ID="opened-store", MS_CURRENCY_RUB_ID="rub",
-                 MS_ATTR_ORDER_NUMBER_ID="order-number-test-field")
+                 MS_ATTR_ORDER_NUMBER_ID="order-number-test-field",
+                 MS_ATTR_ORDER_TYPE_ID="order-type-test-field" if order_type else "",
+                 MS_DICT_ORDER_TYPE_ID="order-type-test-dict",
+                 MS_DICT_ORDER_TYPE_ORDER_ID="value-order",
+                 MS_DICT_ORDER_TYPE_PREORDER_ID="value-preorder")
     ms = MagicMock()
     ms.find_by_filter.side_effect = lambda entity, query: (
         [existing] if entity == "customerorder" and existing else
@@ -49,6 +53,13 @@ def setup_processor(*, enabled=True, existing=None):
 def preorder_attributes(body):
     return [attr["value"] for attr in body.get("attributes", [])
             if "preorder-test-field" in attr["meta"]["href"]]
+
+
+def order_type_values(body):
+    """Какой элемент справочника «Тип заявки» уехал бы в МойСклад."""
+    return [attr["value"]["meta"]["href"].rsplit("/", 1)[-1]
+            for attr in body.get("attributes", [])
+            if "order-type-test-field" in attr["meta"]["href"]]
 
 
 @pytest.mark.parametrize("preorders, expected", [
@@ -159,3 +170,57 @@ def test_video_review_split_is_existing_exception_not_preorder_split():
         "- Blue из видеообзора [SKU: TB-1] × 1"]
     assert regular_body["store"]["meta"]["id"] == "regular-store"
     assert opened_body["store"]["meta"]["id"] == "opened-store"
+
+
+# ─────────── «Тип заявки»: список, который мост amgroup кладёт в сделку amoCRM ───────────
+
+@pytest.mark.parametrize("preorders, expected", [
+    ([False], "value-order"),
+    ([True], "value-preorder"),
+    ([False, True], "value-preorder"),
+    ([True, False], "value-preorder"),
+])
+def test_order_type_value_follows_snapshot(preorders, expected):
+    products = [line(12, "TR", "Tangem Red", preorder=preorders[0])]
+    if len(preorders) == 2:
+        products.append(line(14, "TB", "Tangem Blue", preorder=preorders[1]))
+    processor, ms, _ = setup_processor()
+    processor.process_order(order(*products))
+    assert order_type_values(ms.post.call_args.args[1]) == [expected]
+
+
+def test_order_type_goes_as_dictionary_element_not_text():
+    processor, ms, _ = setup_processor()
+    processor.process_order(order(line(12, "TR", "Red", preorder=True)))
+    attr = [a for a in ms.post.call_args.args[1]["attributes"]
+            if "order-type-test-field" in a["meta"]["href"]][0]
+    assert attr["value"]["meta"]["type"] == "customentity"
+    assert "order-type-test-dict/value-preorder" in attr["value"]["meta"]["href"]
+
+
+def test_unknown_snapshot_leaves_order_type_empty():
+    """Старый заказ без снимка: тип не выдумываем, поле не заполняем вовсе."""
+    item = line(12, "TR", "Red", preorder=True)
+    item["meta_data"] = [{"key": "Backordered", "value": "1"}]
+    processor, ms, _ = setup_processor()
+    processor.process_order(order(item))
+    assert order_type_values(ms.post.call_args.args[1]) == []
+    assert preorder_attributes(ms.post.call_args.args[1]) == []
+
+
+def test_empty_field_id_turns_order_type_off_but_keeps_summary():
+    processor, ms, _ = setup_processor(order_type=False)
+    processor.process_order(order(line(12, "TR", "Red", preorder=True)))
+    body = ms.post.call_args.args[1]
+    assert order_type_values(body) == []
+    assert preorder_attributes(body) == [
+        "Тип: Предзаказ\nОжидаемые позиции:\n- Red [SKU: TR] × 1"]
+
+
+def test_both_fields_go_together_or_not_at_all():
+    """Текст и список - одно условие: врозь они рассказали бы про заказ разное."""
+    processor, ms, _ = setup_processor()
+    processor.process_order(order(line(12, "TR", "Red", preorder=False)))
+    body = ms.post.call_args.args[1]
+    assert preorder_attributes(body) == ["Тип: Заказ\nОжидаемые позиции: нет"]
+    assert order_type_values(body) == ["value-order"]
