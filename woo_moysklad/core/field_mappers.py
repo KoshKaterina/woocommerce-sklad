@@ -25,11 +25,19 @@ def _first_shipping_line(order_data: dict) -> dict:
 
 
 def is_office_pickup(order_data: dict) -> bool:
-    """Самовывоз из офиса (local_pickup) — заказ без адреса доставки."""
+    """Наш самовывоз (local_pickup) — заказ без адреса доставки.
+
+    ⚠️ 23.09.2026 способ доставки на сайте переименовали: «Самовывоз из офиса
+    Sunscrypt» → «Самовывоз из шоурума Sunscrypt». Слова «офиса» в новом имени нет,
+    поэтому проверяем оба слова. Заказ, не опознанный как наш самовывоз, получил бы
+    адрес доставки и уехал мимо статуса «Шоурум» в МС.
+    Старое имя оставляем: в живых заказах на 23.09 встречаются оба.
+    """
     line = _first_shipping_line(order_data)
     if line.get("method_id") == "local_pickup":
         return True
-    return "офиса" in (line.get("method_title") or "").lower()
+    title = (line.get("method_title") or "").lower()
+    return "офиса" in title or "шоурум" in title
 
 
 def extract_cdek_meta(order_data: dict) -> dict:
