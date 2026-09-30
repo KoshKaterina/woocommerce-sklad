@@ -97,7 +97,13 @@ class Config:
 
     # МС: InSales-специфичные UUID — захардкожено (см. _HARDCODED_DEFAULTS)
     MS_ORGANIZATION_INSALES_ID: str = "20413198-d891-11ef-0a80-10c20004fabc"  # ИП Абовян
-    MS_STATE_INSALES_NEW_ID: str = "0f062083-c413-11ee-0a80-13fd002f64a5"
+    # Стартовый статус заказа InSales. ⚠️ Менять только вместе с таблицей соответствий
+    # моста amgroup (amoCRM → Настройки → Интеграции → «МойСклад интеграция» → «Статусы»):
+    # по ЭТОМУ статусу мост выбирает воронку для новой сделки. До 30.09.2026 здесь стояла
+    # «Первичка» (0f062083-c413-11ee-0a80-13fd002f64a5), которой в таблице моста нет ни у
+    # одной из десяти воронок - и сделки Tangemshop падали в «ОП розница», к розничному
+    # распределению (разбор - projects/amo-cleanup/JOURNAL.md, 30.09).
+    MS_STATE_INSALES_NEW_ID: str = "f5c6ba6b-668c-11f1-0a80-0fd50022d85e"  # TangemShop Новый заказ
     MS_PROJECT_INSALES_ID: str = "0fd3c635-d892-11ef-0a80-03c300056ff7"
     MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop
 
