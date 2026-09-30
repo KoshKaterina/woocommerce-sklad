@@ -36,6 +36,9 @@ def make_config():
     # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
     # и normalize_insales_order молча переключился бы на промо-маппинг white_first.
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
+    # Явно False по той же причине: иначе нормализатор InSales полез бы читать
+    # признак предзаказа, а предел возраста заказа пришёл бы заглушкой MagicMock.
+    cfg.INSALES_ORDER_TYPE_ENABLED = False
     # На случай если тест включит флаг, не выставив цену явно — код их читает
     # только при white_first=True, но на MagicMock лучше не полагаться на дефолт.
     cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000

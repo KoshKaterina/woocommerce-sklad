@@ -9,6 +9,7 @@ from woo_moysklad.core.normalized_order import (
     NormalizedLineItem,
     NormalizedOrder,
 )
+from woo_moysklad.insales.preorder import read_order_preorders
 
 log = get_logger(__name__)
 
@@ -509,6 +510,15 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
         if white_first else 0
     white_discount_percent = int(getattr(config, "FAMILY_PACK_WHITE_DISCOUNT_PERCENT", 30)) \
         if white_first else 0
+    # Признак предзаказа: резерв, который InSales ставит на строку при оформлении.
+    # Карта None — флаг выключен или заказ несвежий; тогда у позиций preorder=None,
+    # и «Тип заявки» с «Предзаказ: ожидаемые позиции» не заполняются вовсе.
+    preorder_map = None
+    if getattr(config, "INSALES_ORDER_TYPE_ENABLED", False):
+        preorder_map = read_order_preorders(
+            order_data,
+            max_age_minutes=int(getattr(config, "INSALES_PREORDER_MAX_AGE_MINUTES", 20)))
+
     line_items = []
     for ol in order_data.get("order_lines", []):
         raw_sku = ol.get("sku") or ""
@@ -532,12 +542,18 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
             white_base_price_kopecks=white_base_price_kopecks,
             white_discount_percent=white_discount_percent,
         )
+        # Одна строка InSales может разворачиваться в несколько позиций МС
+        # (Family Pack = два кошелька), признак предзаказа у них общий — он свойство
+        # строки заказа, а не разложенной позиции.
+        line_is_preorder = (None if preorder_map is None
+                            else bool(preorder_map.get(ol.get("id"), False)))
         for ms_sku, price in zip(ms_skus, prices):
             line_items.append(NormalizedLineItem(
                 sku=ms_sku,
                 title=title,
                 price_cents=price,
                 quantity=quantity,
+                preorder=line_is_preorder,
             ))
 
     # Маппинг

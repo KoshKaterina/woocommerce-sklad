@@ -330,7 +330,11 @@ class OrderProcessor:
         # Снимок предзаказа полон - заполняем оба поля разом, одним условием на оба.
         # Разъехавшиеся условия дали бы заказ, где текст говорит «Предзаказ», а список
         # «Тип заявки» пуст или врёт, и в сделку amoCRM уехало бы второе.
-        if (order.source == "woocommerce" and source_lines
+        # InSales здесь наравне с WooCommerce, но признак к нему приходит другим путём:
+        # у WC это замороженный снимок в мете строки, у InSales - резерв платформы,
+        # прочитанный со свежего заказа (woo_moysklad/insales/preorder.py). Несвежий
+        # заказ даёт preorder=None у всех позиций, и оба поля просто не пишутся.
+        if (order.source in ("woocommerce", "insales") and source_lines
                 and all(type(item.preorder) is bool for item in source_lines)):
             if cfg.MS_ATTR_PREORDER_SUMMARY_ID:
                 self._add_attr(attributes, cfg.MS_ATTR_PREORDER_SUMMARY_ID,

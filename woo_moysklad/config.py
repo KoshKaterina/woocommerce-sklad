@@ -107,6 +107,16 @@ class Config:
     MS_PROJECT_INSALES_ID: str = "0fd3c635-d892-11ef-0a80-03c300056ff7"
     MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop
 
+    # «Тип заявки» у заказов InSales: Заказ / Предзаказ по резерву платформы
+    # (разбор - woo_moysklad/insales/preorder.py). Выключено по умолчанию:
+    # включать INSALES_ORDER_TYPE_ENABLED=true в .env.
+    INSALES_ORDER_TYPE_ENABLED: bool = False
+    # Предел возраста заказа, при котором резерву ещё можно верить. Штатный путь -
+    # сверка раз в 3 минуты с отступом 2 минуты на свежие заказы, то есть заказ
+    # обрабатывается за ~5 минут. Двадцать минут - запас, который при этом отсекает
+    # догонку после сбоя связи (она берёт заказы возрастом до шести часов).
+    INSALES_PREORDER_MAX_AGE_MINUTES: int = 20
+
     # uCoz (опционально)
     UCOZ_POLL_URL: str = ""
     UCOZ_STATE_PATH: str = "data/ucoz_state.json"
