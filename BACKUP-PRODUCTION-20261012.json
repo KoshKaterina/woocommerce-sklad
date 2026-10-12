@@ -1,0 +1,205 @@
+{
+  "base": "8ea359c6b0867f34d6b87b459c62933c4b173177",
+  "prefix": "opt/integrations/woocommerce-sklad/",
+  "files": [
+    {
+      "path": "requirements.txt",
+      "sha256": "9e252cc30cf6b4befe7dbfd4babc2c834445e7d362ae67b58c45b067f359565e"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "96d56507d4ebec10e45d12333050e4690d084118770f91fc587d99e1ccf02103"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "62a71b896a6e2052ac969f00349ba4f2c05cfdd3707b8486e2f404bd566100d2"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "c709b316ea6d2ddf43eedc5a7df91f0b1ff22446d01de6225ebfe192ee915d42"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c1d221cbe4b715c69d00460229d239ea7f12efea593e65611277447e115511ba"
+    },
+    {
+      "path": "TODO.md",
+      "sha256": "296e680dda5a1553ee864d5957f9478a28ef1045b3424242a1ddc11f039f7dbc"
+    },
+    {
+      "path": "KNOWN_ISSUES.md",
+      "sha256": "ee1a24acd18dae19be791b8f9040e8c81b761e5ee114ad6f7d879983d69e8157"
+    },
+    {
+      "path": "woo_moysklad/setup_ms_ids.py",
+      "sha256": "de828e0c135b331dada6def14f4ab674cd300b602f3d0dd8a1c48190971825e9"
+    },
+    {
+      "path": "woo_moysklad/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "woo_moysklad/logger.py",
+      "sha256": "6e24302a9cd9749d071ffc10dbf7278128af0d3ea644eeb19783284f3d97fc8e"
+    },
+    {
+      "path": "woo_moysklad/ms_client.py",
+      "sha256": "9e4a2ef1e0ce657a450c8ae9214c214ff33cb9c848a8bce22adc765cea896ccc"
+    },
+    {
+      "path": "woo_moysklad/config.py",
+      "sha256": "71e5a161343e738744d687e09da67af7e194159389882f68c420ac4ed534de3e"
+    },
+    {
+      "path": "woo_moysklad/exceptions.py",
+      "sha256": "859bbe041350435250ff1b372e12644c0208784fb8171036d1c43af4516fefc9"
+    },
+    {
+      "path": "woo_moysklad/main.py",
+      "sha256": "9d18ba729b6652be7b1315dd4e71aae9d9d26b8dc2779b0bb21b2c3638b3c1a2"
+    },
+    {
+      "path": "woo_moysklad/insales/client.py",
+      "sha256": "ae1425bd3bb71427bdcc4f3f7fd681b1d3e5aebacd64a98a648267a5e261acbe"
+    },
+    {
+      "path": "woo_moysklad/insales/preorder.py",
+      "sha256": "64d8755bef28f6839eb7308057ac52d8649912128440da8fd54c21bd9dbf18d3"
+    },
+    {
+      "path": "woo_moysklad/insales/normalizer.py",
+      "sha256": "a04c98ac0c6edbf8e4609d658675a5bdf208f04e8de082275b7a9e548187829e"
+    },
+    {
+      "path": "woo_moysklad/insales/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "woo_moysklad/core/reconciliation.py",
+      "sha256": "7b1b741bf7d97d944a1528238d090bd780f16e9038272b297ae2eb1ad58ce7f8"
+    },
+    {
+      "path": "woo_moysklad/core/field_mappers.py",
+      "sha256": "9a162369a24ba1c351bf0650fd9cfb59eb85e3c7cf90f95beba5bb5a50d5f013"
+    },
+    {
+      "path": "woo_moysklad/core/address_parser.py",
+      "sha256": "81d21b4f7e943a793ef73a0422ed9d07ed23d8a5ba3998ccf0fdd3a02a178873"
+    },
+    {
+      "path": "woo_moysklad/core/normalized_order.py",
+      "sha256": "debd754c1ccfed809b223f9e7e083646cb15b1be0568c40262613b557f97124b"
+    },
+    {
+      "path": "woo_moysklad/core/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "woo_moysklad/core/product_matcher.py",
+      "sha256": "0f126fb7bec283a94ccd2091d60216eb8eff043043fbb2d213da5028f07931ab"
+    },
+    {
+      "path": "woo_moysklad/core/field_resync.py",
+      "sha256": "012bf77a9ecf2a26d80e7672d759b5a38613b56300480d13657e5c00e30e0965"
+    },
+    {
+      "path": "woo_moysklad/core/source_adapter.py",
+      "sha256": "8bbbac791d57a55cebd4b7ad22f22655fad2d1862856be15e860399b022157cc"
+    },
+    {
+      "path": "woo_moysklad/core/order_locks.py",
+      "sha256": "659f6da41fb2f20d8c0be680caffb158ad44ed8cb39a37fe0c1719ab0f34c0d4"
+    },
+    {
+      "path": "woo_moysklad/core/counterparty_handler.py",
+      "sha256": "f7d58c5aa75f24d1718a5c8c13fe50ca4837cca14b133960ece7b7f095b26da4"
+    },
+    {
+      "path": "woo_moysklad/core/order_processor.py",
+      "sha256": "94a9ecbdd42bde453a9bd515da4b3ec871b228a33f92318f434a6e410b98a9b1"
+    },
+    {
+      "path": "woo_moysklad/woocommerce/client.py",
+      "sha256": "dc093410345b128ed004dff123795bf89d254a3d360240a9a2b8019f758ac5e7"
+    },
+    {
+      "path": "woo_moysklad/woocommerce/preorder.py",
+      "sha256": "114fe4042d50d8ae43057c9db51e3eb40e93f4aa12fd800152baf5454d4021b8"
+    },
+    {
+      "path": "woo_moysklad/woocommerce/normalizer.py",
+      "sha256": "6e0e432fd485de6b0e814ee151b61152eb6cb06f19e64e6f0e59dc72c5b24f1f"
+    },
+    {
+      "path": "woo_moysklad/woocommerce/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scripts/process_order.py",
+      "sha256": "dd372958ea463cccc4bedae598fd59ad5b0fb30660cbae4d766dc5c9d13a54b6"
+    },
+    {
+      "path": "scripts/backfill_insales_outage_2026-07-06.py",
+      "sha256": "80584e24be05ed8b8d47af46e4cb89b620cdb13ae549e3a2422ffa5d9784c77d"
+    },
+    {
+      "path": "scripts/fetch_insales_test_data.py",
+      "sha256": "d866e453f254009bab6268115fdc4f67117ffd8fa725d01aa95131e9f637a492"
+    },
+    {
+      "path": "scripts/compare_products.py",
+      "sha256": "e7f9854da3a2ed84798c3e73838c8306725c065a4ce66551ad21f9531a4199a0"
+    },
+    {
+      "path": "scripts/fix_insales_addresses_retro.py",
+      "sha256": "38cddedcdc6464fdcb449d2a078ee0ef4a641fed58f7d959b78cde2e2864dd3a"
+    },
+    {
+      "path": "scripts/resync_order.py",
+      "sha256": "107a5dabcc4d21cd0ac406bdabbc97b97c7218850141218e413b1243b829e9f4"
+    },
+    {
+      "path": "scripts/fix_address_retro.py",
+      "sha256": "b0c9e884d6c5f1f5b3816918c3da43128be8445f0656f6955ccd9e2053529e93"
+    },
+    {
+      "path": "scripts/backfill_ym_client_id.py",
+      "sha256": "cdb54284758d67215be6879f7573d078c88a576e4938cd24cbfd0c33f2c14a2e"
+    },
+    {
+      "path": "scripts/process_insales_order.py",
+      "sha256": "42af02680cf35a4b012cc695be736dbac4e86d17fc14f9d0f9517c10c98c0780"
+    },
+    {
+      "path": "scripts/check_delivery_stats.py",
+      "sha256": "9a376c36903416827897a6b7d9b19c3a648d9edb002f69e38691ca40f9f640a8"
+    },
+    {
+      "path": "scripts/check_insales_skus.py",
+      "sha256": "eb32962600dc5fd922e4af85cc796019c7ac3ec7725883b12e0f597793f4151a"
+    },
+    {
+      "path": "scripts/merge_pickup_services.py",
+      "sha256": "99736a48207dc8b093dc458118c1ca6e29aa0a22fa37c76373fd75b5e0e5d5f8"
+    },
+    {
+      "path": "scripts/fix_counterparty_names_retro.py",
+      "sha256": "1b82801ee9e5748009f50c1f9efa74bf59ea4912794c2c840385e056792edab0"
+    }
+  ],
+  "changed": [
+    "CLAUDE.md",
+    "KNOWN_ISSUES.md",
+    "README.md",
+    "scripts/process_order.py",
+    "woo_moysklad/core/address_parser.py",
+    "woo_moysklad/core/counterparty_handler.py",
+    "woo_moysklad/core/source_adapter.py",
+    "woo_moysklad/insales/client.py",
+    "woo_moysklad/logger.py",
+    "woo_moysklad/main.py",
+    "woo_moysklad/setup_ms_ids.py",
+    "woo_moysklad/woocommerce/client.py"
+  ],
+  "scope_note": "Files listed here are a production snapshot overlay on the recorded GitHub base. Remaining repository files are retained for build/source history. Runtime archives and database snapshots are separate and encrypted. This is a backup branch, not a release."
+}
