@@ -325,6 +325,10 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
         # ClientID Яндекс.Метрики (string) — для сквозной аналитики; нет → не пишем
         self._add_attr(attributes, cfg.MS_ATTR_YM_CLIENT_ID, order.ym_client_id)
+        # Order evidence only: a new unchecked box does not revoke a previous opt-in.
+        consent_attr = getattr(cfg, "MS_ATTR_CHECKOUT_CONSENTS_ID", "")
+        if isinstance(consent_attr, str) and consent_attr and order.checkout_consents:
+            self._add_attr(attributes, consent_attr, order.checkout_consents)
         # Ник Телеграма здесь НЕ пишем: он живёт у контрагента (CounterpartyHandler)
 
         # Снимок предзаказа полон - заполняем оба поля разом, одним условием на оба.

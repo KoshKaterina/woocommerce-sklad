@@ -19,7 +19,7 @@ _HARDCODED_DEFAULTS = frozenset({
     "MS_DICT_ORDER_TYPE_ORDER_ID", "MS_DICT_ORDER_TYPE_PREORDER_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
-    "MS_PROJECT_INSALES_ID",
+    "MS_PROJECT_INSALES_ID", "MS_ATTR_CHECKOUT_CONSENTS_ID",
 })
 
 
@@ -55,6 +55,8 @@ class Config:
     # Новое доп. поле Заказа покупателя типа «Текст» (многострочное): пусто
     # до создания поля и сквозного теста — старый поток без изменений.
     MS_ATTR_PREORDER_SUMMARY_ID: str = ""
+    # «Согласия с сайта» (text), created 19.10.2026; only versioned snapshots are sent.
+    MS_ATTR_CHECKOUT_CONSENTS_ID: str = "327bfdfa-cbd4-11f1-0a80-1c9d00f0e1bf"
     # («Доставка» - MS_ATTR_DELIVERY_SD_ID - удалена 06.08.2026, см. ниже)
     # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS).
     # ⚠️ 05.08.2026 удалены поля фулфилмента: «Вид доставки», «Стоимость доставки»,
