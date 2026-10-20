@@ -47,8 +47,15 @@ in-memory снимки обоих состояний в Python consumer; стр�
 PHP fixture: `tests/checkout-consents.php` в репозитории сайта. Для проверки контракта
 задать `CHECKOUT_CONSENT_PHP_FIXTURE` путём к JSON-выводу этого fixture.
 
-Production-сервис не обновлялся и не перезапускался. Маршрут МС→контакт уже работает. Для полной цепочки проверить текущие серверные
-файлы, подготовить backup/diff,
-затем согласовать production-выкатку сайта и интеграции с адресным рестартом только
-woocommerce-sklad. Сквозной тест не считать пройденным по unit-тестам: нужен отдельно
-согласованный тестовый заказ в безопасном контуре, без клиентских отправок.
+Production выпущен20.10 по прямому согласию Кати: code69198d4/sourcee050923,
+пять файлов, один restart только woo-sklad. RuntimeSHA5/5, image compile/import,
+health /health, существующий consumer timer и неизменный PID amo-fix-fields PASS.
+335tests+1skip до выпуска; затем14tests с живыми in-memory WC fixtures (оба id0),
+включая ранее пропущенный contract, PASS. Сайтsourceadccbef тоже выпущен.
+Backup `/opt/backups/checkout-consents-production-20261020/`, прежний image tag
+`integrations-woo-sklad:before-checkout-consents-20261020`; manifest
+`/opt/integrations/woocommerce-sklad/DEPLOYED.json`. Сохранённый ledger consumer не удалять.
+
+Реальный заказ Woo→МС→amo не создавался: сквозная бизнес-приёмка остаётся открыта.
+Первая сборка поймала macOS AppleDouble-файлы компиляцией и не дошла до рестарта;
+метаданные удалены, архив пересобран Python tarfile, повторная сборка PASS.
