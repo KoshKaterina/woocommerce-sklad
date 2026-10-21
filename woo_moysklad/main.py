@@ -179,18 +179,23 @@ async def webhook_order(
     body = await request.body()
 
     # --- Верификация подписи ---
-    if config and config.WC_WEBHOOK_SECRET and x_wc_webhook_signature:
-        expected = base64.b64encode(
-            hmac.new(
-                config.WC_WEBHOOK_SECRET.encode("utf-8"),
-                body,
-                hashlib.sha256,
-            ).digest()
-        ).decode("utf-8")
+    if not config or not config.WC_WEBHOOK_SECRET:
+        log.error("Webhook signature verification is not configured")
+        return JSONResponse(status_code=503, content={"error": "Webhook unavailable"})
+    if not x_wc_webhook_signature:
+        return JSONResponse(status_code=401, content={"error": "Invalid signature"})
 
-        if not hmac.compare_digest(expected, x_wc_webhook_signature):
-            log.warning("Невалидная подпись вебхука")
-            return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+    expected = base64.b64encode(
+        hmac.new(
+            config.WC_WEBHOOK_SECRET.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).digest()
+    ).decode("utf-8")
+
+    if not hmac.compare_digest(expected, x_wc_webhook_signature):
+        log.warning("Невалидная подпись вебхука")
+        return JSONResponse(status_code=401, content={"error": "Invalid signature"})
 
     # --- Определение топика ---
     topic = x_wc_webhook_topic or ""
