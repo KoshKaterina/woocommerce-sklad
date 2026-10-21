@@ -1,0 +1,17 @@
+# Merge these service settings into the deployment compose override.
+services:
+  woo-sklad:
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      WOO_LOG_FILE: /tmp/woo_moysklad.log
+      PYTHONDONTWRITEBYTECODE: "1"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

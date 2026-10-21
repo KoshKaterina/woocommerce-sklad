@@ -22,7 +22,7 @@ def setup_logging(log_level: str = "INFO", log_file: str = "woo_moysklad.log"):
 
     # Ротация: 10 МБ, максимум 5 файлов
     file_handler = RotatingFileHandler(
-        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+        os.environ.get("WOO_LOG_FILE", log_file), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
     )
     file_handler.setLevel(level)
 
