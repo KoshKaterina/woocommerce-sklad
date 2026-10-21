@@ -25,6 +25,7 @@ from woo_moysklad.core.normalized_order import (
     NormalizedOrder,
 )
 from woo_moysklad.woocommerce.preorder import read_order_preorders
+from woo_moysklad.woocommerce.consents import extract_checkout_consents
 
 log = get_logger(__name__)
 
@@ -139,6 +140,7 @@ def normalize_wc_order(order_data: dict, *, preorder_enabled: bool = False) -> N
         description=description,
         promo_code=promo_code,
         ym_client_id=ym_client_id,
+        checkout_consents=_safe("checkout_consents", lambda: extract_checkout_consents(order_data)),
         is_paid=is_paid,
         is_cod=is_cod,
     )

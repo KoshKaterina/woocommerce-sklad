@@ -38,6 +38,9 @@ def make_config():
     # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
     # и весь e2e-набор молча уехал бы на промо-маппинг white_first по умолчанию.
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
+    # Явно False по той же причине: иначе нормализатор InSales полез бы читать
+    # признак предзаказа, а предел возраста заказа пришёл бы заглушкой MagicMock.
+    cfg.INSALES_ORDER_TYPE_ENABLED = False
     cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000
     cfg.FAMILY_PACK_WHITE_DISCOUNT_PERCENT = 30
     return cfg

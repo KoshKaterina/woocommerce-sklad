@@ -36,6 +36,9 @@ def make_config():
     # Явно False: MagicMock без этого возвращает truthy-заглушку на любой атрибут,
     # и normalize_insales_order молча переключился бы на промо-маппинг white_first.
     cfg.FAMILY_PACK_WHITE_FIRST_ENABLED = False
+    # Явно False по той же причине: иначе нормализатор InSales полез бы читать
+    # признак предзаказа, а предел возраста заказа пришёл бы заглушкой MagicMock.
+    cfg.INSALES_ORDER_TYPE_ENABLED = False
     # На случай если тест включит флаг, не выставив цену явно — код их читает
     # только при white_first=True, но на MagicMock лучше не полагаться на дефолт.
     cfg.FAMILY_PACK_WHITE_BASE_PRICE_KOPECKS = 759000
@@ -238,8 +241,10 @@ def test_delivery_name_courier():
 
 
 def test_delivery_name_showroom():
-    # Самовывоз InSales — со склада ExpressRMS, НЕ из офиса/шоурума Sunscrypt
-    assert build_delivery_service_name({}, "Самовывоз из Шоурума") == "Самовывоз со склада"
+    # 06.10.2026: имя услуги общее с розницей — выдача идёт из того же шоурума.
+    # Было «Самовывоз со склада» (склад ЭРМС, свёрнут 21.07.2026).
+    assert (build_delivery_service_name({}, "Самовывоз из Шоурума")
+            == "Самовывоз из шоурума Sunscrypt")
 
 
 def test_delivery_name_no_delivery():
@@ -437,7 +442,7 @@ def test_promo_code_from_real_fixture():
 
 
 def test_normalize_showroom_pickup_from_fixture():
-    """Заказ #17665 — самовывоз из шоурума: ExpressRMS(Самовывоз) + услуга со склада."""
+    """Заказ #17665 — самовывоз из шоурума: ключ rms_pickup + услуга шоурума."""
     fixture = os.path.join(FIXTURES_DIR, "insales_order_with_promo.json")
     if not os.path.exists(fixture):
         pytest.skip("Нет фикстуры заказа с самовывозом")
@@ -446,7 +451,7 @@ def test_normalize_showroom_pickup_from_fixture():
     order = normalize_insales_order(order_data, make_config())
 
     assert order.delivery_sd_key == "rms_pickup"
-    assert [s.name for s in order.delivery_services] == ["Самовывоз со склада"]
+    assert [s.name for s in order.delivery_services] == ["Самовывоз из шоурума Sunscrypt"]
     assert order.delivery_services[0].price_cents == 0  # самовывоз бесплатный
 
 

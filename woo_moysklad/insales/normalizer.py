@@ -9,6 +9,7 @@ from woo_moysklad.core.normalized_order import (
     NormalizedLineItem,
     NormalizedOrder,
 )
+from woo_moysklad.insales.preorder import read_order_preorders
 
 log = get_logger(__name__)
 
@@ -218,14 +219,23 @@ def build_delivery_service_name(delivery_info: dict, delivery_title: str) -> str
       Диапазон, с запятой:   "CDEK: Самовывоз, (5-6 дней)"
 
     Особые случаи:
-      "Самовывоз из Шоурума"   → "Самовывоз со склада" (склад ExpressRMS,
-                                  НЕ шоурум/офис Sunscrypt — это WC-самовывоз)
+      "Самовывоз из Шоурума"   → "Самовывоз из шоурума Sunscrypt" (как в ОП розницы)
       "Доставка не требуется"  → None
+
+    ⚠️ 06.10.2026: было "Самовывоз со склада" — имя из времён фулфилмента ЭРМС,
+    откуда InSales-самовывоз выдавали до 21.07.2026. ЭРМС свёрнут, выдача идёт
+    из того же шоурума, что и в рознице, а имя осталось и ломало сразу четыре
+    места в amo_fix_fields: перенос в Офис и скип распределения не узнавали
+    самовывоз (маркеры «самовывоз из офиса»/«самовывоз из шоурума»), в воронке
+    TangemShop пришлось держать вторую пару правил «Тип доставки содержит склад»,
+    а ШОУРУМ-бот писал клиенту «Самовывоз из шоурума» при другом значении в
+    заказе. Теперь имя одно на оба магазина. Разбор —
+    knowledge/samovyvoz-insales-nazyvaetsya-so-sklada.md в папке.
     """
     lower_title = delivery_title.lower()
 
     if "самовывоз из шоурума" in lower_title:
-        return "Самовывоз со склада"
+        return "Самовывоз из шоурума Sunscrypt"
 
     if "не требуется" in lower_title:
         return None
@@ -294,6 +304,13 @@ def map_insales_delivery_sd(delivery_info: dict, delivery_title: str = "") -> st
     СДЭК (любой тариф) → 'cdek' по shipping_company.
     "Самовывоз из Шоурума" → 'rms_pickup' («ExpressRMS(Самовывоз)»).
     Прочее ("Доставка не требуется", неизвестное) → None — менеджер ставит вручную.
+
+    ⚠️ Ключ 'rms_pickup' НЕ менять на 'showroom', хотя имя услуги с 06.10.2026 общее
+    с розницей. По 'showroom' `_build_body_from_normalized` подменяет статус заказа МС
+    на MS_STATE_SHOWROOM_PICKUP_ID, а заказы InSales рождаются в своём статусе
+    «TangemShop Новый заказ» (MS_STATE_INSALES_NEW_ID) — подмена сломала бы интейк
+    воронки TangemShop. Само доп.поле «Доставка (СД)» удалено 06.08.2026, ключ живёт
+    только ради этой развилки по статусу.
     """
     if "самовывоз из шоурума" in delivery_title.lower():
         return "rms_pickup"
@@ -509,6 +526,15 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
         if white_first else 0
     white_discount_percent = int(getattr(config, "FAMILY_PACK_WHITE_DISCOUNT_PERCENT", 30)) \
         if white_first else 0
+    # Признак предзаказа: резерв, который InSales ставит на строку при оформлении.
+    # Карта None — флаг выключен или заказ несвежий; тогда у позиций preorder=None,
+    # и «Тип заявки» с «Предзаказ: ожидаемые позиции» не заполняются вовсе.
+    preorder_map = None
+    if getattr(config, "INSALES_ORDER_TYPE_ENABLED", False):
+        preorder_map = read_order_preorders(
+            order_data,
+            max_age_minutes=int(getattr(config, "INSALES_PREORDER_MAX_AGE_MINUTES", 20)))
+
     line_items = []
     for ol in order_data.get("order_lines", []):
         raw_sku = ol.get("sku") or ""
@@ -532,12 +558,18 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
             white_base_price_kopecks=white_base_price_kopecks,
             white_discount_percent=white_discount_percent,
         )
+        # Одна строка InSales может разворачиваться в несколько позиций МС
+        # (Family Pack = два кошелька), признак предзаказа у них общий — он свойство
+        # строки заказа, а не разложенной позиции.
+        line_is_preorder = (None if preorder_map is None
+                            else bool(preorder_map.get(ol.get("id"), False)))
         for ms_sku, price in zip(ms_skus, prices):
             line_items.append(NormalizedLineItem(
                 sku=ms_sku,
                 title=title,
                 price_cents=price,
                 quantity=quantity,
+                preorder=line_is_preorder,
             ))
 
     # Маппинг

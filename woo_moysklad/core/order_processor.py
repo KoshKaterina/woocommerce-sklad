@@ -325,12 +325,20 @@ class OrderProcessor:
         self._add_attr(attributes, cfg.MS_ATTR_PROMO_CODE_ID, order.promo_code)
         # ClientID Яндекс.Метрики (string) — для сквозной аналитики; нет → не пишем
         self._add_attr(attributes, cfg.MS_ATTR_YM_CLIENT_ID, order.ym_client_id)
+        # Order evidence only: a new unchecked box does not revoke a previous opt-in.
+        consent_attr = getattr(cfg, "MS_ATTR_CHECKOUT_CONSENTS_ID", "")
+        if isinstance(consent_attr, str) and consent_attr and order.checkout_consents:
+            self._add_attr(attributes, consent_attr, order.checkout_consents)
         # Ник Телеграма здесь НЕ пишем: он живёт у контрагента (CounterpartyHandler)
 
         # Снимок предзаказа полон - заполняем оба поля разом, одним условием на оба.
         # Разъехавшиеся условия дали бы заказ, где текст говорит «Предзаказ», а список
         # «Тип заявки» пуст или врёт, и в сделку amoCRM уехало бы второе.
-        if (order.source == "woocommerce" and source_lines
+        # InSales здесь наравне с WooCommerce, но признак к нему приходит другим путём:
+        # у WC это замороженный снимок в мете строки, у InSales - резерв платформы,
+        # прочитанный со свежего заказа (woo_moysklad/insales/preorder.py). Несвежий
+        # заказ даёт preorder=None у всех позиций, и оба поля просто не пишутся.
+        if (order.source in ("woocommerce", "insales") and source_lines
                 and all(type(item.preorder) is bool for item in source_lines)):
             if cfg.MS_ATTR_PREORDER_SUMMARY_ID:
                 self._add_attr(attributes, cfg.MS_ATTR_PREORDER_SUMMARY_ID,

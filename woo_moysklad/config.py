@@ -19,7 +19,7 @@ _HARDCODED_DEFAULTS = frozenset({
     "MS_DICT_ORDER_TYPE_ORDER_ID", "MS_DICT_ORDER_TYPE_PREORDER_ID",
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
-    "MS_PROJECT_INSALES_ID",
+    "MS_PROJECT_INSALES_ID", "MS_ATTR_CHECKOUT_CONSENTS_ID",
 })
 
 
@@ -55,6 +55,8 @@ class Config:
     # Новое доп. поле Заказа покупателя типа «Текст» (многострочное): пусто
     # до создания поля и сквозного теста — старый поток без изменений.
     MS_ATTR_PREORDER_SUMMARY_ID: str = ""
+    # «Согласия с сайта» (text), created 19.10.2026; only versioned snapshots are sent.
+    MS_ATTR_CHECKOUT_CONSENTS_ID: str = "327bfdfa-cbd4-11f1-0a80-1c9d00f0e1bf"
     # («Доставка» - MS_ATTR_DELIVERY_SD_ID - удалена 06.08.2026, см. ниже)
     # ...а эти — захардкожены (мигрированные поля 2026-06, НЕ из .env; см. _HARDCODED_DEFAULTS).
     # ⚠️ 05.08.2026 удалены поля фулфилмента: «Вид доставки», «Стоимость доставки»,
@@ -97,9 +99,25 @@ class Config:
 
     # МС: InSales-специфичные UUID — захардкожено (см. _HARDCODED_DEFAULTS)
     MS_ORGANIZATION_INSALES_ID: str = "20413198-d891-11ef-0a80-10c20004fabc"  # ИП Абовян
-    MS_STATE_INSALES_NEW_ID: str = "0f062083-c413-11ee-0a80-13fd002f64a5"
+    # Стартовый статус заказа InSales. ⚠️ Менять только вместе с таблицей соответствий
+    # моста amgroup (amoCRM → Настройки → Интеграции → «МойСклад интеграция» → «Статусы»):
+    # по ЭТОМУ статусу мост выбирает воронку для новой сделки. До 30.09.2026 здесь стояла
+    # «Первичка» (0f062083-c413-11ee-0a80-13fd002f64a5), которой в таблице моста нет ни у
+    # одной из десяти воронок - и сделки Tangemshop падали в «ОП розница», к розничному
+    # распределению (разбор - projects/amo-cleanup/JOURNAL.md, 30.09).
+    MS_STATE_INSALES_NEW_ID: str = "f5c6ba6b-668c-11f1-0a80-0fd50022d85e"  # TangemShop Новый заказ
     MS_PROJECT_INSALES_ID: str = "0fd3c635-d892-11ef-0a80-03c300056ff7"
     MS_SALES_CHANNEL_INSALES_ID: str = "77525ff2-60be-11f1-0a80-0d620009ec3b"  # TangemShop
+
+    # «Тип заявки» у заказов InSales: Заказ / Предзаказ по резерву платформы
+    # (разбор - woo_moysklad/insales/preorder.py). Выключено по умолчанию:
+    # включать INSALES_ORDER_TYPE_ENABLED=true в .env.
+    INSALES_ORDER_TYPE_ENABLED: bool = False
+    # Предел возраста заказа, при котором резерву ещё можно верить. Штатный путь -
+    # сверка раз в 3 минуты с отступом 2 минуты на свежие заказы, то есть заказ
+    # обрабатывается за ~5 минут. Двадцать минут - запас, который при этом отсекает
+    # догонку после сбоя связи (она берёт заказы возрастом до шести часов).
+    INSALES_PREORDER_MAX_AGE_MINUTES: int = 20
 
     # uCoz (опционально)
     UCOZ_POLL_URL: str = ""
