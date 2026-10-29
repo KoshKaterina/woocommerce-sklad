@@ -6,6 +6,11 @@ from woo_moysklad.logger import get_logger
 
 log = get_logger(__name__)
 
+# Признаки товара со склада "Вскрытые" в названии позиции заказа. На сайте суффикс
+# "(из видеообзора)" сменён на "(витринный образец)"; старые заказы и заказы,
+# оформленные до переименования, приходят со старым названием, поэтому нужны оба.
+OPENED_NAME_MARKERS = ("из видеообзор", "витринный образец")
+
 
 class ProductMatcher:
     """Сопоставление товаров WC → МС по артикулу (SKU) и управление услугами доставки."""
@@ -19,10 +24,11 @@ class ProductMatcher:
     def _parse_video_review_sku(sku: str, product_name: str) -> tuple[str, bool]:
         """Определить реальный SKU и признак 'из видеообзора'.
 
-        Если в названии товара есть 'из видеообзор', убираем суффикс -N из SKU.
+        Если в названии товара есть признак из OPENED_NAME_MARKERS, убираем суффикс -N из SKU.
         Возвращает (clean_sku, is_opened).
         """
-        if "из видеообзор" in product_name.lower():
+        name = product_name.lower()
+        if any(marker in name for marker in OPENED_NAME_MARKERS):
             clean = re.sub(r'-\d+$', '', sku)
             return clean, True
         return sku, False
