@@ -3,6 +3,7 @@
 import time
 from datetime import datetime
 
+from woo_moysklad.core.client_note import build_site_client_note
 from woo_moysklad.core.counterparty_handler import CounterpartyHandler
 from woo_moysklad.exceptions import CounterpartyError, OrderProcessingError
 from woo_moysklad.core.field_mappers import build_attribute
@@ -329,6 +330,11 @@ class OrderProcessor:
         consent_attr = getattr(cfg, "MS_ATTR_CHECKOUT_CONSENTS_ID", "")
         if isinstance(consent_attr, str) and consent_attr and order.checkout_consents:
             self._add_attr(attributes, consent_attr, order.checkout_consents)
+        # Данные клиента как на сайте: контрагент/контакт amo могут хранить другое имя,
+        # менеджеру нужен оригинал (заметку в сделку из этого поля пишет amo_fix_fields).
+        site_client_attr = getattr(cfg, "MS_ATTR_SITE_CLIENT_ID", "")
+        if isinstance(site_client_attr, str) and site_client_attr:
+            self._add_attr(attributes, site_client_attr, build_site_client_note(order))
         # Ник Телеграма здесь НЕ пишем: он живёт у контрагента (CounterpartyHandler)
 
         # Снимок предзаказа полон - заполняем оба поля разом, одним условием на оба.
