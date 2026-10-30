@@ -42,6 +42,10 @@ def build_site_client_note(order: NormalizedOrder) -> str | None:
     )
     if comment:
         lines.append(f"Комментарий покупателя: {comment}")
+    # Не ввод клиента, а сигнал менеджеру: заметку в сделку пишет amo_fix_fields, другого
+    # пути в amo у предупреждения нет.
+    if order.staff_warning:
+        lines.append(_one_line(order.staff_warning))
 
     text = "\n".join(lines)
     return text[:_MAX_LEN]

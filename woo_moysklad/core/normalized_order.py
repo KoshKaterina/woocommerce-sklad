@@ -58,6 +58,7 @@ class NormalizedOrder:
     promo_code: str | None = None
     ym_client_id: str | None = None          # ClientID Яндекс.Метрики (WC meta_data)
     checkout_consents: str | None = None     # Снимок выбора в заказе, не состояние подписки
+    staff_warning: str | None = None         # Что проверить менеджеру (акция без права и т. п.)
 
     # Переопределения конфига (None = использовать дефолт)
     organization_id: str | None = None

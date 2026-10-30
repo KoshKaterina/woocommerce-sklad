@@ -20,6 +20,7 @@ _HARDCODED_DEFAULTS = frozenset({
     "MS_SALES_CHANNEL_INSALES_ID", "MS_SALES_CHANNEL_MARKETPLACE_ID",
     "INSALES_SHOP_URL", "MS_ORGANIZATION_INSALES_ID", "MS_STATE_INSALES_NEW_ID",
     "MS_PROJECT_INSALES_ID", "MS_ATTR_CHECKOUT_CONSENTS_ID", "MS_ATTR_SITE_CLIENT_ID",
+    "INSALES_MAIN_WALLET_PRODUCT_ID",
 })
 
 
@@ -122,6 +123,16 @@ class Config:
     # обрабатывается за ~5 минут. Двадцать минут - запас, который при этом отсекает
     # догонку после сбоя связи (она берёт заказы возрастом до шести часов).
     INSALES_PREORDER_MAX_AGE_MINUTES: int = 20
+
+    # Акция «дополнительный белый Tangem 2.0 (3 карты) за 4 990 ₽» (ТЗ 30.10.2026):
+    # вариант скрытого акционного товара InSales. 0 - товар не заведён, проверка права на
+    # акцию выключена. Задать в .env после создания товара: INSALES_EXTRA_WHITE_VARIANT_ID.
+    # Разбор - woo_moysklad/insales/extra_white.py.
+    INSALES_EXTRA_WHITE_VARIANT_ID: int = 0
+    # Окончание акции, ISO с поясом (2026-11-30T23:59:59+03:00). Пусто - срок не проверяется.
+    INSALES_EXTRA_WHITE_ENDS_AT: str = ""
+    # «Tangem 2.0»: любой его вариант даёт право на один акционный набор (захардкожено).
+    INSALES_MAIN_WALLET_PRODUCT_ID: int = 318114475
 
     # uCoz (опционально)
     UCOZ_POLL_URL: str = ""

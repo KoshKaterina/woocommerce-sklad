@@ -417,8 +417,11 @@ class OrderProcessor:
         if order.project_id:
             body["project"] = self.ms.make_meta("project", order.project_id)
 
-        if order.description:
-            body["description"] = order.description
+        # Предупреждение менеджеру - первым абзацем комментария, комментарий покупателя
+        # остаётся ниже как был. В «Клиент с сайта» оно идёт отдельной строкой (client_note).
+        description = "\n\n".join(part for part in (order.staff_warning, order.description) if part)
+        if description:
+            body["description"] = description
         if order.shipment_address:
             body["shipmentAddress"] = order.shipment_address
         address_full = self._build_shipment_address_full(order)

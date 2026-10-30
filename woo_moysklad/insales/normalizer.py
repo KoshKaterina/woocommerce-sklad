@@ -9,6 +9,7 @@ from woo_moysklad.core.normalized_order import (
     NormalizedLineItem,
     NormalizedOrder,
 )
+from woo_moysklad.insales.extra_white import extra_white_warning
 from woo_moysklad.insales.preorder import read_order_preorders
 
 log = get_logger(__name__)
@@ -591,6 +592,18 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
     if shipment_address_parts is not None:
         shipment_address = None
     promo_code = _safe("promo_code", lambda: extract_insales_promo_code(discounts))
+    # Только настоящие значения: заглушка конфига (MagicMock в тестах) не должна включать проверку.
+    promo_variant_id = getattr(config, "INSALES_EXTRA_WHITE_VARIANT_ID", 0)
+    main_product_id = getattr(config, "INSALES_MAIN_WALLET_PRODUCT_ID", 0)
+    ends_at = getattr(config, "INSALES_EXTRA_WHITE_ENDS_AT", "")
+    staff_warning = _safe("extra_white", lambda: extra_white_warning(
+        order_data,
+        promo_variant_id=promo_variant_id if isinstance(promo_variant_id, int) else 0,
+        main_product_id=main_product_id if isinstance(main_product_id, int) else 0,
+        ends_at=ends_at if isinstance(ends_at, str) else ""))
+    if staff_warning:
+        log.error("InSales: заказ с акцией 4 990 без права на неё",
+                  order_number=order_data.get("number"), warning=staff_warning)
 
     # Услуга доставки
     is_cod = "при получении" in payment_title.lower()
@@ -657,6 +670,7 @@ def normalize_insales_order(order_data: dict, config) -> NormalizedOrder:
         shipment_address_parts=shipment_address_parts,
         description=comment,
         promo_code=promo_code,
+        staff_warning=staff_warning,
         organization_id=config.MS_ORGANIZATION_INSALES_ID or None,
         state_id=config.MS_STATE_INSALES_NEW_ID or None,
         project_id=config.MS_PROJECT_INSALES_ID or None,
