@@ -8,6 +8,8 @@ import pytest
 from woo_moysklad.core.field_mappers import (
     build_attribute,
     build_shipment_address,
+    country_label,
+    is_other_delivery,
     is_office_pickup,
     detect_delivery_type,
     extract_courier_comment,
@@ -339,3 +341,42 @@ def test_build_attribute_custom_entity():
     assert attr["value"]["meta"]["type"] == "customentity"
     assert "dict-uuid" in attr["value"]["meta"]["href"]
     assert "elem-uuid" in attr["value"]["meta"]["href"]
+
+
+# --- «Другая страна» (ZZ) и незнакомые коды: не «Россия» ---
+
+def _other_country_order():
+    """Заказ «Другой страны» с сайта: города и адреса нет, адрес - в комментарии."""
+    return {
+        "shipping": {"country": "ZZ", "state": "", "city": "", "postcode": "",
+                     "address_1": "", "address_2": ""},
+        "shipping_lines": [{"method_title": "Другой способ",
+                            "method_id": "sc_other_delivery", "meta_data": []}],
+        "customer_note": "Germany, Berlin, Musterstrasse 1, 10115",
+    }
+
+def test_country_label():
+    assert country_label("") == "Россия"
+    assert country_label("ru") == "Россия"
+    assert country_label("KZ") == "Казахстан"
+    assert country_label("ZZ") == "Другая страна"
+    assert country_label("DE") == "DE"
+
+def test_build_shipment_address_other_country():
+    assert build_shipment_address(_other_country_order()) == "Другая страна"
+
+def test_build_shipment_address_unknown_country_not_russia():
+    order = {
+        "shipping": {"country": "DE", "city": "Berlin", "address_1": "Musterstrasse 1",
+                     "postcode": "10115"},
+        "shipping_lines": [{"method_title": "Курьерская доставка"}],
+    }
+    assert build_shipment_address(order) == "DE, Berlin, Musterstrasse 1, 10115"
+
+def test_other_delivery_detected():
+    assert is_other_delivery(_other_country_order()) is True
+    assert is_other_delivery(_office_order()) is False
+    assert is_other_delivery({"shipping_lines": []}) is False
+
+def test_other_country_comment_kept():
+    assert extract_courier_comment(_other_country_order()) == "Germany, Berlin, Musterstrasse 1, 10115"

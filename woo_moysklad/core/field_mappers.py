@@ -19,6 +19,31 @@ def detect_delivery_type(method_title: str) -> str:
     return "courier"
 
 
+# «Другая страна» в корзине сайта (плагин sun-other-country, 03.11.2026): служебный код ZZ,
+# города и адреса нет, адрес покупатель пишет в комментарий к заказу.
+OTHER_COUNTRY_CODE = "ZZ"
+OTHER_COUNTRY_LABEL = "Другая страна"
+# Доставка этой страны «Другой способ»: способ и цену согласует менеджер
+OTHER_DELIVERY_METHOD_ID = "sc_other_delivery"
+
+
+def country_label(iso: str) -> str:
+    """Страна для строки адреса доставки по ISO-коду shipping.country.
+
+    Пустой код → «Россия» (так было всегда: старые заказы без страны - российские).
+    ZZ → «Другая страна». Код, которого нет в справочнике, пишем как есть («DE»):
+    до 03.11.2026 он тоже становился «Россией», и зарубежный заказ выглядел российским.
+    """
+    from woo_moysklad.core.address_parser import ISO_TO_COUNTRY_NAME
+
+    code = (iso or "").strip().upper()
+    if not code:
+        return "Россия"
+    if code == OTHER_COUNTRY_CODE:
+        return OTHER_COUNTRY_LABEL
+    return ISO_TO_COUNTRY_NAME.get(code, code)
+
+
 def _first_shipping_line(order_data: dict) -> dict:
     lines = order_data.get("shipping_lines", [])
     return lines[0] if lines else {}
@@ -38,6 +63,11 @@ def is_office_pickup(order_data: dict) -> bool:
         return True
     title = (line.get("method_title") or "").lower()
     return "офиса" in title or "шоурум" in title
+
+
+def is_other_delivery(order_data: dict) -> bool:
+    """Доставка «Другой способ» (только для «Другой страны»): вида доставки у неё нет."""
+    return _first_shipping_line(order_data).get("method_id") == OTHER_DELIVERY_METHOD_ID
 
 
 def extract_cdek_meta(order_data: dict) -> dict:
@@ -64,10 +94,8 @@ def build_shipment_address(order_data: dict) -> str | None:
     самовывоз из офиса: None — адреса доставки нет.
 
     Страна берётся по ISO-коду shipping.country (не хардкод — бывают KZ/BY/…),
-    с дефолтом «Россия», если код неизвестен/пуст.
+    см. country_label: пустой код - «Россия», ZZ - «Другая страна», незнакомый - сам код.
     """
-    from woo_moysklad.core.address_parser import ISO_TO_COUNTRY_NAME
-
     if is_office_pickup(order_data):
         return None
 
@@ -77,8 +105,7 @@ def build_shipment_address(order_data: dict) -> str | None:
 
     postcode = shipping.get("postcode", "")
     city = shipping.get("city", "")
-    iso = (shipping.get("country") or "").upper()
-    country = ISO_TO_COUNTRY_NAME.get(iso, "Россия")
+    country = country_label(shipping.get("country") or "")
 
     if delivery_type == "pvz":
         address_2 = shipping.get("address_2", "")

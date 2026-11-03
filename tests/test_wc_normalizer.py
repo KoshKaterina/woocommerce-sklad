@@ -133,3 +133,23 @@ def test_pvz_empty_address2_fallback_to_cdek_meta():
     assert n.shipment_address == "Россия, SPB217, Санкт-Петербург"
     assert n.shipment_address_parts.city == "Санкт-Петербург"
     assert n.shipment_address_parts.add_info == ""  # дубля города в «Другое» нет
+
+
+def test_other_country_order():
+    """«Другая страна» (ZZ): адрес «Другая страна», без shipmentAddressFull,
+    вида и службы доставки нет, комментарий с адресом уходит в описание, не оплачен."""
+    order = _wc_order("Другой способ", delivery_title="Другой способ")
+    order["status"] = "on-hold"
+    order["shipping_lines"][0].update({"method_id": "sc_other_delivery", "total": "0"})
+    order["shipping"] = {"country": "ZZ", "state": "", "city": "", "postcode": "",
+                         "address_1": "", "address_2": ""}
+    order["customer_note"] = "Germany, Berlin, Musterstrasse 1, 10115"
+    n = normalize_wc_order(order)
+    assert n.shipment_address == "Другая страна"
+    assert n.shipment_address_parts is not None and n.shipment_address_parts.is_empty()
+    assert n.shipment_address_parts.country_name == ""
+    assert n.delivery_type_key is None
+    assert n.delivery_sd_key is None
+    assert n.description == "Germany, Berlin, Musterstrasse 1, 10115"
+    assert n.is_paid is False
+    assert n.payment_title == "Другой способ"

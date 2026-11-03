@@ -13,6 +13,7 @@ from woo_moysklad.core.field_mappers import (
     is_manual_payment_mark,
     is_manual_prepayment,
     is_office_pickup,
+    is_other_delivery,
     map_delivery_sd,
     map_delivery_type,
     map_payment_type,
@@ -96,9 +97,15 @@ def normalize_wc_order(order_data: dict, *, preorder_enabled: bool = False) -> N
     if is_office_pickup(order_data):
         # local_pickup ловим по method_id, не полагаясь на название метода
         delivery_sd_key = "showroom"
+    elif is_other_delivery(order_data):
+        delivery_sd_key = None  # службу выберет менеджер, когда договорится с покупателем
     else:
         delivery_sd_key = _safe("map_delivery_sd", lambda: map_delivery_sd(method_title))
-    delivery_type_key = _safe("map_delivery_type", lambda: map_delivery_type(method_title))
+    if is_other_delivery(order_data):
+        # «Другой способ» другой страны: способ согласует менеджер, «Курьерскую» не ставим
+        delivery_type_key = None
+    else:
+        delivery_type_key = _safe("map_delivery_type", lambda: map_delivery_type(method_title))
     pvz_code = _safe("extract_pvz_code", lambda: extract_pvz_code(order_data))
     # Самовывоз из офиса — адреса доставки нет, ни плоского, ни структурного
     if is_office_pickup(order_data):
